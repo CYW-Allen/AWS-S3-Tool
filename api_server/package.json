@@ -11,8 +11,12 @@
   "email": "wen900445@gmail.com",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-cloudfront": "^3.484.0",
     "@aws-sdk/client-dynamodb": "^3.484.0",
+    "@aws-sdk/client-s3": "^3.484.0",
     "@aws-sdk/lib-dynamodb": "^3.484.0",
+    "@aws-sdk/s3-presigned-post": "^3.484.0",
+    "@aws-sdk/s3-request-presigner": "^3.484.0",
     "@fastify/autoload": "^5.8.0",
     "@fastify/cors": "^8.5.0",
     "@fastify/jwt": "^7.2.4",
@@ -23,6 +27,7 @@
     "fastify": "^4.25.2",
     "fastify-plugin": "^4.5.1",
     "fluent-json-schema": "^4.2.1",
+    "mime-types": "^2.1.35",
     "npmlog": "^7.0.1"
   },
   "devDependencies": {
