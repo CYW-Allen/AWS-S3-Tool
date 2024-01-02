@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "S3apiServer"
+s3_bucket = "apeast1deployment"
+s3_prefix = "S3ApiSvr"
+region = "ap-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Deploy S3 api server
+Resources:
+  S3ApiSvrLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/S3ApiSvr
+      RetentionInDays: 7
+  S3ApiSvr:
+    Type: AWS::Serverless::Function
+    DependsOn: S3ApiSvrLogGroup
+    Properties:
+      FunctionName: S3ApiSvr
+      Handler: lambda.handler
+      Description: A api server for S3 manipulation.
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 1024
+      Timeout: 10
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref S3ObjHistory
+        - DynamoDBCrudPolicy:
+            TableName: !Ref S3AuthTab
+        - AmazonS3FullAccess
+        - CloudFrontFullAccess
+      Environment:
+        Variables:
+          AWS_DB_REGION: ap-east-1
+          AWS_S3_REGION: ap-northeast-1
+          AWS_CLOUDFRONT_REGION: ap-northeast-1
+          AUTH_TABLE: !Ref S3AuthTab
+          HISTORY_TABLE: !Ref S3ObjHistory
+          JWT_SECRET: s3apisecret
+          NODE_ENV: prod
+          DEFAULT_SCOPE: apitestgroundbucket
+          RESERVED_KEY: 'tool,static'
+      Events:
+        Signup:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /users/signup
+            Method: POST
+        Signin:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /users/signin
+            Method: POST
+        EditScope:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /users/{user}/scope
+            Method: PATCH
+        DeleteUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /users/{user}
+            Method: DELETE
+        GetObjs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/objects
+            Method: GET
+        CreateObjs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/objects
+            Method: PUT
+        DeleteObjs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/objects
+            Method: DELETE
+        ModifyObjs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/objects/infos
+            Method: PATCH
+        ChangeObjVer:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/object/version
+            Method: PATCH
+        RestoreDelObj:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/{bucket}/objects/existence
+            Method: PATCH
+        RefreshCdn:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/distributions
+            Method: PATCH
+        ListObjHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3History/{bucket}
+            Method: GET
+        QueryObjHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3History/{bucket}
+            Method: POST
+        AddObjHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3History/{bucket}
+            Method: PUT
+        DeleteObjHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3History/{bucket}
+            Method: DELETE
+  S3ApiSvrAuthorizerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/S3ApiSvrAuthorizer
+      RetentionInDays: 7
+  S3ApiSvrAuthorizer:
+    Type: AWS::Serverless::Function
+    DependsOn: S3ApiSvrAuthorizerLogGroup
+    Properties:
+      FunctionName: S3ApiSvrAuthorizer
+      CodeUri: reqAuth/
+      Handler: ipExaminer.handler
+      Description: An authorizer for request source ip examination.
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 512
+      Timeout: 10
+      Environment:
+        Variables:
+          ALLOW_IP: 211.75.165.5
+  S3ApiSvrApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: S3ApiSvrProxy
+      StageName: prod
+      OpenApiVersion: '3.0'
+      EndpointConfiguration: REGIONAL
+      Cors:
+        AllowMethods: '''*'''
+        AllowOrigin: '''*'''
+        AllowHeaders: '''*'''
+      Auth:
+        DefaultAuthorizer: S3ApiSvrAuthorizer
+        Authorizers:
+          S3ApiSvrAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt S3ApiSvrAuthorizer.Arn
+            Identity:
+              ReauthorizeEvery: 0
+  S3ObjHistory:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: S3ObjHistory
+      AttributeDefinitions:
+        - AttributeName: recId
+          AttributeType: S
+        - AttributeName: action
+          AttributeType: S
+        - AttributeName: createdTimeNum
+          AttributeType: 'N'
+        - AttributeName: editor
+          AttributeType: S
+        - AttributeName: objKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: recId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: action-index
+          KeySchema:
+            - AttributeName: action
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: createdTimeNum-index
+          KeySchema:
+            - AttributeName: createdTimeNum
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: editor-index
+          KeySchema:
+            - AttributeName: editor
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: objKey-index
+          KeySchema:
+            - AttributeName: objKey
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+  S3AuthTab:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: S3AuthTab
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
