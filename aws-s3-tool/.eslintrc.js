@@ -69,7 +69,13 @@ module.exports = {
     'import/prefer-default-export': 'off',
 
     'prefer-promise-reject-errors': 'off',
+
     'max-len': 'off',
+    'linebreak-style': 0,
+    'no-plusplus': 'off',
+    'no-console': 'off',
+    'no-unused-vars': ['error', { args: 'after-used' }],
+    'lines-between-class-members': 'off',
 
     // allow debugger during development only
     'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',

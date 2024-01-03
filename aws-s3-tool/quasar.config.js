@@ -29,7 +29,7 @@ module.exports = configure((/* ctx */) => ({
   // --> boot files are part of "main.js"
   // https://v2.quasar.dev/quasar-cli/boot-files
   boot: [
-
+    'defaultAlert',
   ],
 
   // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
@@ -67,7 +67,7 @@ module.exports = configure((/* ctx */) => ({
 
     // publicPath: '/',
     // analyze: true,
-    // env: {},
+    env: require('dotenv').config().parsed,
     // rawDefine: {}
     // ignorePublicFolder: true,
     // minify: false,
@@ -105,7 +105,7 @@ module.exports = configure((/* ctx */) => ({
     // directives: [],
 
     // Quasar plugins
-    plugins: ['Dialog'],
+    plugins: ['Dialog', 'Notify'],
   },
 
   // animations: 'all', // --- includes all animations
