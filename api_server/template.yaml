@@ -37,6 +37,7 @@ Resources:
           NODE_ENV: prod
           DEFAULT_SCOPE: apitestgroundbucket
           RESERVED_KEY: 'tool,static'
+          UTCOFFSET: 28800000
       Events:
         Signup:
           Type: Api
@@ -62,6 +63,12 @@ Resources:
             RestApiId: !Ref S3ApiSvrApiGateway
             Path: /users/{user}
             Method: DELETE
+        ListBuckets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets/infos
+            Method: GET
         GetObjs:
           Type: Api
           Properties:
@@ -157,9 +164,9 @@ Resources:
       OpenApiVersion: '3.0'
       EndpointConfiguration: REGIONAL
       Cors:
-        AllowMethods: '''*'''
-        AllowOrigin: '''*'''
-        AllowHeaders: '''*'''
+        AllowMethods: "'*'"
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type, Authorization'"
       Auth:
         DefaultAuthorizer: S3ApiSvrAuthorizer
         Authorizers:

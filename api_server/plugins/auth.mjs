@@ -16,7 +16,7 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   fastify.decorate('signup', async function (req, reply) {
     const { username, password } = req.body;
-    const curTime = dayjs(new Date()).format('YYYY/MM/DD HH:mm:ss');
+    const curTime = dayjs(Date.now() + Number(process.env.UTCOFFSET)).format('YYYY/MM/DD HH:mm:ss');
     const bucketScope = new Set([process.env.DEFAULT_SCOPE]);
     const isAdmin = false;
 
@@ -56,7 +56,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         UpdateExpression: 'SET lastLogin = :v_lastLogin',
         ConditionExpression: 'attribute_exists(username)',
         ExpressionAttributeValues: {
-          ':v_lastLogin': dayjs(new Date()).format('YYYY/MM/DD HH:mm:ss'),
+          ':v_lastLogin': dayjs(Date.now() + Number(process.env.UTCOFFSET)).format('YYYY/MM/DD HH:mm:ss'),
         },
         ReturnValues: 'ALL_NEW',
       }))).Attributes;

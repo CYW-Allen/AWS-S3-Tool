@@ -126,7 +126,7 @@ export default fastifyPlugin(async function (fastify, opts) {
           bucket,
           objKey,
           createdAt: Date.now(),
-          createdTimeNum: Number(dayjs(new Date()).format('YYYYMMDD')),
+          createdTimeNum: Number(dayjs(Date.now() + Number(process.env.UTCOFFSET)).format('YYYYMMDD')),
           action,
           editor,
         },
