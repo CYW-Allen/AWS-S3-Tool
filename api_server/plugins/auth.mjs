@@ -3,6 +3,7 @@ import {
   PutCommand,
   UpdateCommand,
   DeleteCommand,
+  ScanCommand
 } from '@aws-sdk/lib-dynamodb';
 import bcrypt from 'bcryptjs';
 import dayjs from 'dayjs';
@@ -17,7 +18,7 @@ export default fastifyPlugin(async function (fastify, opts) {
   fastify.decorate('signup', async function (req, reply) {
     const { username, password } = req.body;
     const curTime = dayjs(Date.now() + Number(process.env.UTCOFFSET)).format('YYYY/MM/DD HH:mm:ss');
-    const bucketScope = new Set([process.env.DEFAULT_SCOPE]);
+    const bucketScope = [process.env.DEFAULT_SCOPE];
     const isAdmin = false;
 
     try {
@@ -34,7 +35,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         ConditionExpression: 'attribute_not_exists(username)',
       }));
       fastify.logStat('info', 'signup', `The user (${username}) is success to sign up`);
-      return reply.send({ token: fastify.jwt.sign({ username, bucketScope: [...bucketScope], isAdmin }) })
+      return reply.send({ token: fastify.jwt.sign({ username, bucketScope, isAdmin }) })
     } catch (err) {
       if (err.name === 'ConditionalCheckFailedException') {
         fastify.logStat('info', 'signup', `The user (${username}) is success to sign up`);
@@ -69,7 +70,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         return reply.send({
           token: fastify.jwt.sign({
             username,
-            bucketScope: [...result.bucketScope],
+            bucketScope: result.bucketScope,
             isAdmin: result.isAdmin,
           }),
         });
@@ -114,28 +115,29 @@ export default fastifyPlugin(async function (fastify, opts) {
     return true;
   });
 
-  fastify.decorate('editScope', async function (req, reply) {
+  fastify.decorate('editPermission', async function (req, reply) {
     const username = req.params.user;
-    const { bucket, action } = req.query;
+    const { scope, isAdmin } = req.body;
 
     try {
       await fastify.dbClient.send(new UpdateCommand({
         TableName: fastify.userTable,
         Key: { username },
-        UpdateExpression: `${action} bucketScope :v_bucket`,
+        UpdateExpression: `SET bucketScope = :v_scope, isAdmin = :v_isAdmin`,
         ConditionExpression: 'attribute_exists(username)',
         ExpressionAttributeValues: {
-          ':v_bucket': new Set([bucket]),
+          ':v_scope': scope,
+          ':v_isAdmin': isAdmin,
         },
       }));
-      fastify.logStat('info', 'editScope', `The scope of the user (${username}) has already been update. (${action} ${bucket})`);
-      return reply.send({ message: 'Success to edit scope' });
+      fastify.logStat('info', 'editPermission', `Update user (${username}) permission. scope: ${scope}, isAdmin: ${isAdmin})`);
+      return reply.send({ message: 'Success to update permission' });
     } catch (err) {
       if (err.name === 'ConditionalCheckFailedException') {
-        fastify.logStat('info', 'editScope', `The user (${username}) doesn\'t exist`);
+        fastify.logStat('info', 'editPermission', `The user (${username}) doesn\'t exist`);
         return reply.code(404).send({ message: 'The user doesn\'t exist' });
       } else {
-        fastify.logStat('error', 'editScope', err);
+        fastify.logStat('error', 'editPermission', err);
         return reply.code(500).send();
       }
     }
@@ -165,6 +167,27 @@ export default fastifyPlugin(async function (fastify, opts) {
         fastify.logStat('error', 'deleteUser', err);
         return reply.code(500).send();
       }
+    }
+  });
+
+  fastify.decorate('listUsers', async function (req, reply) {
+    try {
+      const users = [];
+      const dbCmd = new ScanCommand({
+        TableName: fastify.userTable,
+        ProjectionExpression: 'username,bucketScope,createdAt,lastLogin,isAdmin',
+      });
+
+      do {
+        const { Items, LastEvaluatedKey } = await fastify.dbClient.send(dbCmd);
+
+        for (let i = 0; i < Items.length; i++) users.push(Items[i]);
+        dbCmd.input.ExclusiveStartKey = LastEvaluatedKey;
+      } while (dbCmd.input.ExclusiveStartKey);
+      return reply.send({ data: users });
+    } catch (err) {
+      fastify.logStat('error', 'root->listUsers', err);
+      return reply.code(500).send();
     }
   });
 }, {

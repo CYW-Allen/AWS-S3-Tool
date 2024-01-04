@@ -47,19 +47,19 @@ export default async function (fastify, _opts) {
     },
   };
 
-  const optsEditScope = {
+  const optsEditPermission = {
     schema: {
-      summary: 'Change permission scope',
-      description: 'change permissio scope for manipulation',
+      summary: 'Edit permission',
+      description: 'Edit permission (bucketScope, isAdmin) for specific user',
       tags: ['Users'],
       security: [{ jwt: [] }],
       params: S.object().prop('user', schemaUsername),
-      querystring: S.object()
-        .prop('action', S.string().enum(['add', 'delete']).required())
-        .prop('bucket', fastify.schemaNotEmpty.required()),
+      body: S.object()
+        .prop('scope', S.array().items(S.string()).required())
+        .prop('isAdmin', S.boolean().enum([true, false]).required()),
       response: {
         200: S.object()
-          .description('Success to change permission scope')
+          .description('Success to update permission')
           .prop('message', S.string()),
         400: fastify.clientErrResponse(),
         403: respUnpermitReq,
@@ -90,8 +90,26 @@ export default async function (fastify, _opts) {
     onRequest: [fastify.verifyToken, fastify.checkAdmin],
   };
 
+  const optsListUsers = {
+    schema: {
+      summary: 'List users',
+      description: 'List all users in auth table',
+      tags: ['Users'],
+      security: [{ jwt: [] }],
+      response: {
+        200: S.object()
+          .description('Success to get all users')
+          .prop('data', S.array().items(S.object().additionalProperties(true))),
+        403: respUnpermitReq,
+        500: fastify.svrErrResponse,
+      },
+    },
+    onRequest: [fastify.verifyToken, fastify.checkAdmin],
+  };
+
   fastify.post('/signup', optsSignup, fastify.signup);
   fastify.post('/signin', optsSignin, fastify.signin);
-  fastify.patch('/:user/scope', optsEditScope, fastify.editScope);
+  fastify.patch('/:user/permission', optsEditPermission, fastify.editPermission);
   fastify.delete('/:user', optsDeleteUser, fastify.deleteUser);
+  fastify.get('/', optsListUsers, fastify.listUsers);
 }

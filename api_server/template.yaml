@@ -51,11 +51,11 @@ Resources:
             RestApiId: !Ref S3ApiSvrApiGateway
             Path: /users/signin
             Method: POST
-        EditScope:
+        EditPermission:
           Type: Api
           Properties:
             RestApiId: !Ref S3ApiSvrApiGateway
-            Path: /users/{user}/scope
+            Path: /users/{user}/permission
             Method: PATCH
         DeleteUser:
           Type: Api
@@ -63,6 +63,12 @@ Resources:
             RestApiId: !Ref S3ApiSvrApiGateway
             Path: /users/{user}
             Method: DELETE
+        ListUsers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /users
+            Method: GET
         ListBuckets:
           Type: Api
           Properties:
