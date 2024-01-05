@@ -7,6 +7,8 @@ export const useAppStatusStore = defineStore('appStatus', () => (
     reserveWords: process.env.RESERVE_WORDS.split(','),
     isMobile: Platform.is.mobile,
 
+    showPermissionHandler: ref(false),
+
     contentScrollArea: ref(null),
 
     dragSelect: ref(null),

@@ -10,7 +10,7 @@
         <q-icon name="fa-solid fa-user" size="sm" />
         <div class="titleField q-mr-lg">{{ permission.userInfo.username }}</div>
         <q-icon v-if="permission.userInfo.isAdmin" class="cursor-pointer q-mr-lg" name="fa-solid fa-users-gear" size="sm"
-          title="user permission" />
+          title="user permission" @click="appStatus.showPermissionHandler = true" />
         <q-icon class="cursor-pointer q-mr-lg" name="fa-regular fa-rectangle-list" size="sm" title="object history" />
         <q-icon class="cursor-pointer" size="sm" name="fa-solid fa-right-from-bracket" title="logout"
           @click="permission.logout" />
@@ -28,6 +28,7 @@
     </q-footer>
   </q-layout>
 
+  <permission-handler />
   <q-inner-loading :showing="appStatus.isProcessing">
     <div class="text-blue-8 text-h4 q-mb-md">
       <span class="q-mr-sm">Request processing...</span>
@@ -40,7 +41,9 @@
 import { ref, watch } from 'vue';
 import { useAppStatusStore } from 'src/stores/appStatus';
 import { usePermissionStore } from 'src/stores/permission';
+
 import AuthHandler from 'src/components/AuthHandler.vue';
+import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();
@@ -50,7 +53,6 @@ const tweakPageH = (offset) => ({ height: offset ? `calc(100vh - ${offset}px)` :
 
 watch(() => permission.token, () => {
   [curBucket.value] = permission.userInfo.bucketScope;
-  console.log(permission.userInfo.bucketScope);
 });
 </script>
 

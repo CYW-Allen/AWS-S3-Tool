@@ -35,11 +35,11 @@ export const usePermissionStore = defineStore('permission', () => {
     window.location.reload();
   }
 
-  async function editPermissionScopeByAdmin(action, user, bucket) {
+  async function editPermission(user, scope, isAdmin) {
     try {
       const { message } = (await axios.patch(
-        `${svrUrl}/users/${user}/scope?action=${action}&bucket=${bucket}`,
-        null,
+        `${svrUrl}/users/${user}/permission`,
+        { scope, isAdmin },
         {
           headers: {
             Authorization: `Bearer ${token.value}`,
@@ -54,7 +54,7 @@ export const usePermissionStore = defineStore('permission', () => {
     }
   }
 
-  async function removePermissionByAdmin(user) {
+  async function removePermission(user) {
     try {
       const { message } = (await axios.delete(
         `${svrUrl}/users/${user}`,
@@ -67,12 +67,44 @@ export const usePermissionStore = defineStore('permission', () => {
     }
   }
 
+  async function listUsers() {
+    try {
+      return (await axios.get(
+        `${svrUrl}/users`,
+        { headers: { Authorization: `Bearer ${token.value}` } },
+      )).data.data
+        .filter((user) => user.username !== userInfo.value.username)
+        .reduce((result, user) => {
+          result[user.username] = user;
+          return result;
+        }, {});
+      // .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err) {
+      makeAlert('error', 'listUsers', 'Fail to get all users', err);
+      return [];
+    }
+  }
+
+  async function listAllBuckets() {
+    try {
+      return Object.keys((await axios.get(
+        `${svrUrl}/s3Buckets/infos`,
+        { headers: { Authorization: `Bearer ${token.value}` } },
+      )).data.data);
+    } catch (err) {
+      makeAlert('error', 'listAllBuckets', 'Fail to get all buckets', err);
+      return [];
+    }
+  }
+
   return {
     token,
     userInfo,
     getPermission,
     logout,
-    editPermissionScopeByAdmin,
-    removePermissionByAdmin,
+    editPermission,
+    removePermission,
+    listUsers,
+    listAllBuckets,
   };
 });
