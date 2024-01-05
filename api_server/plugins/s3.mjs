@@ -235,8 +235,25 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   fastify.decorate('listBuckets', async function (req, reply) {
     try {
+      return reply.send({
+        data: (await s3Client.send(new ListBucketsCommand({})))
+          ?.Buckets?.map((bucket) => bucket.Name) || [],
+      });
+    } catch (err) {
+      fastify.logStat('error', `${req.user.username}->listBuckets`, `${err.name}: ${err.message}`);
+      return reply.code(500).send();
+    }
+  });
+
+  fastify.decorate('getBucketsInfo', async function (req, reply) {
+    try {
       const output = {};
-      const buckets = (await s3Client.send(new ListBucketsCommand({})))?.Buckets || [];
+      const buckets = req.user.bucketScope;
+
+      buckets.forEach((bucket) => {
+        output[bucket] = null;
+      });
+
       const listDistributionsCmd = new ListDistributionsCommand({});
       const distributions = [];
       const s3BucketPattern = /(.+)\.s3-website-ap-northeast-1\.amazonaws\.com/;
@@ -251,12 +268,6 @@ export default fastifyPlugin(async function (fastify, opts) {
         listDistributionsCmd.input.Marker = resp?.DistributionList?.NextMarker;
       } while (listDistributionsCmd.input.Marker);
 
-      const bucketNames = [];
-
-      buckets.forEach((bucket) => {
-        bucketNames.push(bucket.Name);
-        output[bucket.Name] = null;
-      });
       distributions.forEach((distrib) => {
         const originNameList = distrib.Origins.Items.map((i) => {
           const match = i.DomainName.match(s3BucketPattern);
@@ -264,7 +275,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         });
 
         for (let i = 0; i < originNameList.length; i++) {
-          if (bucketNames.includes(originNameList[i])) {
+          if (buckets.includes(originNameList[i])) {
             output[originNameList[i]] = {
               cdnID: distrib.Id,
               domain: distrib.Aliases.Items[i],

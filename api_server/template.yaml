@@ -73,6 +73,12 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref S3ApiSvrApiGateway
+            Path: /s3Buckets
+            Method: GET
+        GetBucketsInfo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref S3ApiSvrApiGateway
             Path: /s3Buckets/infos
             Method: GET
         GetObjs:

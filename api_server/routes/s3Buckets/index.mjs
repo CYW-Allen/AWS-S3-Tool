@@ -6,22 +6,39 @@ export default async function (fastify, _opts) {
     S.object().description('Insufficient permissions'),
   );
 
-  const optsGetBuckets = {
+  const optsListBuckets = {
     schema: {
-      summary: 'List all S3 objects',
-      description: 'Get informations about S3 objectss',
+      summary: 'List all S3 buckets',
+      description: 'Get all S3 buckets',
       tags: ['S3 objects'],
       security: [{ jwt: [] }],
       response: {
         200: S.object()
-          .description('Success to get informations of all buckets')
-          .prop('data', S.object().additionalProperties(true)),
+          .description('Success to get all buckets')
+          .prop('data', S.array().items(S.string())),
         403: respUnpermitReq,
         500: fastify.svrErrResponse,
       },
     },
     onRequest: [fastify.verifyToken, fastify.checkAdmin],
   };
+
+  const optsGetBucketsInfo = {
+    schema: {
+      summary: 'Get info of S3 buckets',
+      description: 'Get informations about specific S3 buckets',
+      tags: ['S3 objects'],
+      security: [{ jwt: [] }],
+      response: {
+        200: S.object()
+          .description('Success to get informations of buckets')
+          .prop('data', S.object().additionalProperties(true)),
+        403: respUnpermitReq,
+        500: fastify.svrErrResponse,
+      },
+    },
+    onRequest: [fastify.verifyToken],
+  }
 
   const optsGetObjs = {
     schema: {
@@ -206,14 +223,15 @@ export default async function (fastify, _opts) {
     onRequest: [fastify.verifyToken, fastify.checkPermission],
   };
 
-  fastify.get('/infos', optsGetBuckets, fastify.listBuckets);
-
   fastify.get('/:bucket/objects', optsGetObjs, fastify.getObjects);
   fastify.put('/:bucket/objects', optsCreateObjs, fastify.createObjects);
   fastify.delete('/:bucket/objects', optsDeleteObjs, fastify.deleteObjects);
   fastify.patch('/:bucket/objects/infos', optsModifyObjs, fastify.modifyObjInfo);
   fastify.patch('/:bucket/object/version', optsChangeVersion, fastify.changeObjVer);
   fastify.patch('/:bucket/objects/existence', optsRestoreDelObj, fastify.restoreDelObj);
+
+  fastify.get('/infos', optsGetBucketsInfo, fastify.getBucketsInfo);
+  fastify.get('/', optsListBuckets, fastify.listBuckets)
 
   fastify.patch('/distributions', optsRefreshCDN, fastify.refreshCDN);
 
