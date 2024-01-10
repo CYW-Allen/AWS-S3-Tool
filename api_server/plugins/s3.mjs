@@ -170,24 +170,18 @@ export default fastifyPlugin(async function (fastify, opts) {
     const Bucket = req.params.bucket;
     const user = req.user.username;
     const Key = req.body.objKeys[0];
-    const respData = {
-      data: {
-        objInfos: [],
-        failedKeys: [],
-      },
-    };
 
     try {
       await s3Client.send(new HeadObjectCommand({ Bucket, Key }));
       fastify.logStat('info', `${user}->createFolder`, `The folder (${Bucket}:${Key}) has already existed`);
-      return respData;
+      return null;
     } catch (err) {
       if (err.name === 'NotFound') {
         try {
           await s3Client.send(new PutObjectCommand({ Bucket, Key, ContentLength: 0 }));
           fastify.logStat('info', `${user}->createFolder`, `${Bucket}:${Key} success`);
           await fastify.recordOper(Bucket, Key, 'create', user);
-          return respData;
+          return true;
         } catch (e) {
           fastify.logStat('error', `${user}->createFolder`, `${e.name}: ${e.message}`);
           if (e.name === 'NoSuchBucket') return undefined;
@@ -204,8 +198,8 @@ export default fastifyPlugin(async function (fastify, opts) {
     const user = req.user.username;
     const { objKeys, isPublic } = req.body;
 
-    const objInfos = [];
-    const failedKeys = [];
+    const success = [];
+    const failure = [];
     const results = await Promise.allSettled(
       objKeys?.map((Key) => createPresignedPost(
         s3Client,
@@ -223,14 +217,14 @@ export default fastifyPlugin(async function (fastify, opts) {
     );
 
     results.forEach((result, index) => {
-      if (result.status === 'fulfilled') objInfos.push(result.value);
+      if (result.status === 'fulfilled') success.push(result.value);
       else {
         const failKey = objKeys[index];
-        failedKeys.push(failKey);
-        fastify.logStat('error', `${user}->getUploadUrls`, `${failedKeys} fail - ${result.reason}`);
+        failure.push(failKey);
+        fastify.logStat('error', `${user}->getUploadUrls`, `${failKey} fail - ${result.reason}`);
       }
     });
-    return { data: { objInfos, failedKeys } };
+    return { data: { success, failure } };
   }
 
   fastify.decorate('listBuckets', async function (req, reply) {
@@ -304,14 +298,14 @@ export default fastifyPlugin(async function (fastify, opts) {
         result = await listAllObjs(req);
         if (result) return reply.send(result);
         if (result === undefined) return reply.code(404).send({ message: 'The specified bucket does not exist' });
-        return reply.code(500).send({ message: 'Fail to get the bucket\'s structure' });
+        return reply.code(500).send();
       case 'file':
         return reply.send(await downloadFiles(req, reply));
       case 'versions':
         result = await getObjVersion(req);
         if (result) return reply.send(result);
         if (result === undefined) return reply.code(404).send({ message: 'The specified bucket does not exist' });
-        return reply.code(500).send({ message: 'Fail to get object\'s version' });
+        return reply.code(500).send();
       default:
         return reply.code(400).send();
     }
@@ -319,10 +313,10 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   fastify.decorate('createObjects', async function (req, reply) {
     if (req.query.type === 'folder') {
-      const result = await createFolder(req);
+      const isSuccess = await createFolder(req);
 
-      if (result) return reply.send(result);
-      else if (result === undefined) return reply.code(404).send({ message: 'The specified bucket does not exist' });
+      if (isSuccess) return reply.code(204).send();
+      if (isSuccess === undefined) return reply.code(404).send({ message: 'The specified bucket does not exist' });
       return reply.code(500).send({ message: 'Fail to create folder' });
     }
     return reply.send(await getUploadUrls(req));
@@ -338,10 +332,14 @@ export default fastifyPlugin(async function (fastify, opts) {
         Delete: { Objects: req.body },
       }));
       const success = result?.Deleted?.map((delInfo) => delInfo.Key) || [];
-      const failure = result?.Errors?.map((err) => err.Key) || [];
+      const failure = [];
+
+      result?.Errors?.forEach((err) => {
+        failure.push(err.Key);
+        fastify.logStat('error', `${user}->deleteObjects`, `Fail to delete ${err.Key}: ${err.Message}`);
+      });
 
       await Promise.allSettled(success.map((key) => fastify.recordOper(Bucket, key, 'delete', user)));
-      fastify.logStat('info', `${user}->deleteObjects`, `Fail deletions: ${failure.join(',') || 'null'}`);
       return reply.send({ data: { success, failure } });
     } catch (err) {
       fastify.logStat('error', `${user}->deleteObjects`, `${err.name}: ${err.message}`);
@@ -368,7 +366,10 @@ export default fastifyPlugin(async function (fastify, opts) {
 
     copyResults.forEach((result, index) => {
       if (result.status === 'fulfilled') successCopy.push(items[index].oriKey);
-      else failure.push(items[index].oriKey);
+      else {
+        fastify.logStat('error', `${user}->modifyObjInfo`, `Fail to copy ${items[index].oriKey}: ${result.reason}`);
+        failure.push(items[index].oriKey);
+      }
     });
 
     try {
@@ -377,11 +378,12 @@ export default fastifyPlugin(async function (fastify, opts) {
         Delete: { Objects: successCopy.map((Key) => ({ Key })) }
       }));
       const success = deleteResult?.Deleted?.map((delInfo) => delInfo.Key) || [];
-      const failDelKeys = deleteResult?.Errors?.map((err) => err.Key) || [];
 
-      for (let i = 0; i < failDelKeys.length; i++) failure.push(failDelKeys[i]);
+      deleteResult?.Errors?.forEach((err) => {
+        failure.push(err.Key);
+        fastify.logStat('error', `${user}->modifyObjInfo`, `Fail to delete ${err.Key}: ${err.Message}`);
+      });
       await Promise.allSettled(success.map((key) => fastify.recordOper(Bucket, key, 'modify', user)));
-      fastify.logStat('info', `${user}->modifyObjInfo`, `Failing Modification list: ${failure.join(',') || 'null'}`);
       return reply.send({ data: { success, failure } });
     } catch (err) {
       fastify.logStat('error', `${user}->modifyObjInfo`, `${err.name}: ${err.message}`);
@@ -409,7 +411,7 @@ export default fastifyPlugin(async function (fastify, opts) {
       }));
       await fastify.recordOper(Bucket, key, 'switch', user);
       fastify.logStat('info', `${user}->changeObjVer`, `Success to switch the version of the object (${key})`);
-      return reply.send({ data: null });
+      return reply.code(204).send();
     } catch (err) {
       fastify.logStat('error', `${user}->changeObjVer`, `${err.name}: ${err.message}`);
       if (err.name === 'NoSuchBucket' || err.name === 'NoSuchVersion') {
@@ -440,28 +442,31 @@ export default fastifyPlugin(async function (fastify, opts) {
         if (result.status === 'fulfilled') {
           const delVersions = result.value.DeleteMarkers;
 
-          if (!result.value.Versions) failure.push({ key: curObjKey, reason: 'The object has never existed' });
-          else if (!delVersions || !delVersions[0].IsLatest) {
-            failure.push({ key: curObjKey, reason: 'The object is still alive' });
+          if (!result.value.Versions) {
+            failure.push(curObjKey);
+            fastify.logStat('error', `${user}->restoreDelObj`, `The object: ${curObjKey} has never existed`);
+          } else if (!delVersions || !delVersions[0].IsLatest) {
+            failure.push(curObjKey);
+            fastify.logStat('error', `${user}->restoreDelObj`, `The object: ${curObjKey} is still alive`);
           } else {
             curDelList.push({ Key: curObjKey, VersionId: delVersions[0].VersionId });
           }
         } else {
-          fastify.logStat('error', `${user}->restoreDelObj`, `${curObjKey} fail - ${result.reason}`);
-          failure.push({ key: curObjKey, reason: result.reason.message });
+          failure.push(curObjKey);
+          fastify.logStat('error', `${user}->restoreDelObj`, `Fail to get version of ${curObjKey}: ${result.reason}`);
         }
       });
 
       const deleteResult = curDelList.length
         ? await s3Client.send(new DeleteObjectsCommand({
-          Bucket,
-          Delete: { Objects: curDelList },
-        })) : {};
+          Bucket, Delete: { Objects: curDelList }
+        }))
+        : {};
       const success = deleteResult?.Deleted?.map((delInfo) => delInfo.Key) || [];
 
       deleteResult?.Errors?.forEach((err) => {
-        failure.push({ key: err.Key, reason: 'Internal server error' });
-        fastify.logStat('error', `${user}->restoreDelObj`, err.Message);
+        failure.push(err.Key);
+        fastify.logStat('error', `${user}->restoreDelObj`, `Fail to delete ${err.Key}: ${err.Message}`);
       });
 
       await Promise.allSettled(success.map((key) => fastify.recordOper(Bucket, key, 'restore', user)));
@@ -485,7 +490,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         },
       }));
       await fastify.logStat('info', `${user}->refreshCDN`, `Success to refresh cdn (id: ${DistributionId})`);
-      return reply.send({ data: null });
+      return reply.code(204).send();
     } catch (err) {
       fastify.logStat('error', `${user}->refreshCDN`, `${err.name}: ${err.message}`);
       return reply.code(500).send();

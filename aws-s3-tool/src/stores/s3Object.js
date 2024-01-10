@@ -62,7 +62,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       return (await axios.get(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=structure`,
         { headers: { Authorization: `Bearer ${permission.token}` } },
-      )).data;
+      )).data.data;
     } catch (err) {
       makeAlert('error', 'getBucketStructure', 'Fail to get folder structure', err);
       return null;
@@ -102,12 +102,15 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         })
         .join(',');
 
-      const downloadUrls = (await axios.get(
+      const { fileUrls, failedKeys } = (await axios.get(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=file&reqList=${reqKeys}`,
         { headers: { Authorization: `Bearer ${permission.token}` } },
-      )).data;
+      )).data.data;
 
-      execDownload(downloadUrls, fileNames);
+      execDownload(fileUrls, fileNames);
+      if (failedKeys.length) {
+        makeAlert('error', 'downloadFiles', `Fail to download object: ${failedKeys.join(',')}`);
+      }
     } catch (err) {
       makeAlert('error', 'downloadFiles', 'Fail to download the files', err);
     }
@@ -131,29 +134,31 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     }
   }
 
-  async function uploadObject(objType, objKeys, objVals, isPublic) {
+  async function createObject(objType, objKeys, objVals, isPublic) {
     try {
-      const { objInfos, failedKeys } = (await axios.put(
+      const creatingResult = (await axios.put(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=${objType}`,
         { objKeys, ...(objType === 'file' && { isPublic }) },
         { headers: { Authorization: `Bearer ${permission.token}` } },
       )).data;
 
       if (objType === 'file') {
-        const results = await Promise.allSettled(objInfos.map((objInfo) => (
+        const uploadingResult = await Promise.allSettled(creatingResult.success.map((objInfo) => (
           processUpload(objInfo, objVals[objInfo.fields.key])
         )));
 
-        results.forEach((result) => {
-          if (result.status === 'rejected') failedKeys.push(result.reason);
+        uploadingResult.forEach((result) => {
+          if (result.status === 'rejected') {
+            creatingResult.failure.push(result.reason);
+          }
         });
       }
 
-      if (failedKeys.length) {
-        makeAlert('error', `uploadObject(${objType})`, 'Some objects fail to create', new Error(`Failure: ${failedKeys.join(',')}`));
+      if (creatingResult?.failure?.length) {
+        makeAlert('error', `createObject(${objType})`, `Some objects fail to create: ${creatingResult?.failure.join(',')}`);
       }
     } catch (err) {
-      makeAlert('error', `uploadObject(${objType})`, 'Fail to create object', err);
+      makeAlert('error', `createObject(${objType})`, 'Fail to create object', err);
     }
   }
 
@@ -182,7 +187,6 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         if (!bucketStructure.value[objDir]) {
           [, lastPartKey] = objDir.split(base);
           const dirEndChar = document.getElementById(objDir).classList.contains('isDir') ? '/' : '';
-          // lastPartKey.split('.').length > 1 ? '' : '/';
 
           result.push({
             oriKey: objDir.slice(1),
@@ -209,7 +213,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       )).data;
 
       if (failure.length) {
-        makeAlert('err', `modifyObject(${type})`, `Some objects fail to ${type}: ${failure.join(',')}`, new Error(`Failed: ${failure.join(',')}`));
+        makeAlert('err', `modifyObject(${type})`, `Some objects fail to ${type}: ${failure.join(',')}`);
       } else {
         makeAlert('info', `modifyObject(${type})`, `All objects success to ${type}`);
       }
@@ -257,12 +261,12 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
           )).data;
 
           if (failure.length) {
-            makeAlert('error', 'deleteObject', `Some objects fail to delete: ${failure.join(',')}`, new Error(`Failed: ${failure.join(',')}`));
+            makeAlert('error', 'deleteObject', `Some objects fail to delete: ${failure.join(',')}`);
           } else {
             makeAlert('info', 'deleteObject', 'Success to delete the objects');
-            appStatus.restoreList = success;
             getBucketStructure().then((val) => { bucketStructure.value = val; });
           }
+          appStatus.restoreList = success;
         } catch (err) {
           makeAlert('error', 'deleteObject', 'Fail to delete the objects', err);
         }
@@ -271,16 +275,20 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   }
 
   async function getObjVersions() {
-    try {
-      const isFile = appStatus.selections[0].classList.contains('isFile');
-      const objKey = `${appStatus.selections[0].id.slice(1)}${isFile ? '' : '/'}`;
+    const isFile = appStatus.selections[0].classList.contains('isFile');
 
-      appStatus.curObjVerList = (await axios.get(
-        `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=versions&objKey=${objKey}`,
-        { headers: { Authorization: `Bearer ${permission.token}` } },
-      )).data.data.objVerInfos;
-    } catch (err) {
-      makeAlert('error', 'getObjVersions', 'Fail to get the object\'s version', err);
+    if (!isFile) makeAlert('error', 'getObjVersions', 'Only file object is versioned');
+    else {
+      const objKey = appStatus.selections[0].id.slice(1);
+
+      try {
+        appStatus.curObjVerList = (await axios.get(
+          `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=versions&objKey=${objKey}`,
+          { headers: { Authorization: `Bearer ${permission.token}` } },
+        )).data.data.objVerInfos;
+      } catch (err) {
+        makeAlert('error', 'getObjVersions', `Fail to get the version of the object: ${objKey}`, err);
+      }
     }
   }
 
@@ -330,18 +338,11 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       )).data.data;
 
       if (failure.length) {
-        const failKeys = failure.map((f) => f.key);
-
-        makeAlert(
-          'error',
-          'restoreDeletedObj',
-          `Fail to restore the objects: ${failKeys.join(',')}`,
-          failure.map(({ key, reason }) => `${key}: ${reason}`).join('\n'),
-        );
-        appStatus.restoreList = failKeys;
+        makeAlert('error', 'restoreDeletedObj', `Fail to restore the objects: ${failure.join(',')}`);
+        appStatus.restoreList = failure;
       } else {
-        appStatus.restoreList = [];
         makeAlert('info', 'restoreDeletedObj', 'Success to restore the objects');
+        appStatus.restoreList = [];
       }
     } catch (err) {
       makeAlert('error', 'restoreDeletedObj', 'Fail to restore the object', err);
@@ -391,7 +392,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     listAllBuckets,
     getBucketStructure,
     downloadFiles,
-    uploadObject,
+    createObject,
     modifyObject,
     deleteObject,
     getObjVersions,

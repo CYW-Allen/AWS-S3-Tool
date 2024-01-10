@@ -85,11 +85,12 @@ export default async function (fastify, _opts) {
         .prop('isPublic', S.boolean()),
       response: {
         200: S.object()
-          .description('Success to create object')
+          .description('Success to upload files')
           .prop('data', S.object()
-            .prop('objInfos', S.array().items(S.object().additionalProperties(true)))
-            .prop('failedKeys', S.array().items(S.string()))
+            .prop('success', S.array().items(S.object().additionalProperties(true)))
+            .prop('failure', S.array().items(S.string()))
           ),
+        204: S.object().description('Success to create folder'),
         400: respInvalidReq,
         403: respUnpermitReq,
         404: respInvalidReq,
@@ -142,7 +143,8 @@ export default async function (fastify, _opts) {
           .description('Success to modify objects')
           .prop('data', S.object()
             .prop('success', S.array().items(S.string()))
-            .prop('failure', S.array().items(S.string()))),
+            .prop('failure', S.array().items(S.string()))
+          ),
         400: respInvalidReq,
         403: respUnpermitReq,
         404: respInvalidReq,
@@ -164,9 +166,7 @@ export default async function (fastify, _opts) {
         .prop('key', fastify.schemaNotEmpty.required())
         .prop('isPublic', S.boolean().enum([true, false])),
       response: {
-        200: S.object()
-          .description('Success to change object\'s version')
-          .prop('data', S.null()),
+        204: S.object().description('Success to change object\'s version'),
         400: respInvalidReq,
         403: respUnpermitReq,
         404: respInvalidReq,
@@ -189,10 +189,7 @@ export default async function (fastify, _opts) {
           .description('Finish to process the restore request')
           .prop('data', S.object()
             .prop('success', S.array().items(S.string()))
-            .prop('failure', S.array().items(S.object()
-              .prop('key', S.string())
-              .prop('reason', S.string())
-            ))
+            .prop('failure', S.array().items(S.string()))
           ),
         400: respInvalidReq,
         403: respUnpermitReq,
@@ -212,9 +209,7 @@ export default async function (fastify, _opts) {
         .prop('DistributionId', fastify.schemaNotEmpty.required())
         .prop('Items', S.array().items(S.string()).minItems(1).required()),
       response: {
-        200: S.object()
-          .description('Success to refresh the distributions')
-          .prop('data', S.null()),
+        204: S.object().description('Success to refresh the distributions'),
         400: respInvalidReq,
         403: respUnpermitReq,
         500: fastify.svrErrResponse,

@@ -14,7 +14,7 @@ export const useAlertHandlerStore = defineStore('alertHandler', () => {
       const occurTime = dayjs().format('YYYY/MM/DD HH:mm:ss');
 
       Notify.create(message);
-      console.log(`${occurTime} [${caller}] Error: ${err}`);
+      console.log(`${occurTime} [${caller}] Error: ${err || message}`);
     }
   }
 
