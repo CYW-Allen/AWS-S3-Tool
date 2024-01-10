@@ -4,8 +4,9 @@
     <q-header elevated class="bg-blue-2">
       <q-bar class="glossy q-py-lg">
         <q-icon class="q-mr-md" size="sm" name="fa-solid fa-database" />
-        <q-select class="titleField q-mr-md" borderless dropdown-icon="fa-solid fa-caret-down" v-model="curBucket"
-          :options="permission.userInfo.bucketScope" :hide-dropdown-icon="permission.userInfo.bucketScope.length < 2" />
+        <q-select class="titleField q-mr-md" borderless dropdown-icon="fa-solid fa-caret-down"
+          v-model="s3Object.curBucket" :options="s3Object.availbleBuckets"
+          :hide-dropdown-icon="s3Object.availbleBuckets.length < 2" />
         <q-space />
         <q-icon name="fa-solid fa-user" size="sm" />
         <div class="titleField q-mr-lg">{{ permission.userInfo.username }}</div>
@@ -38,22 +39,19 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
 import { useAppStatusStore } from 'src/stores/appStatus';
 import { usePermissionStore } from 'src/stores/permission';
+import { useS3ObjectStore } from 'src/stores/s3Object';
 
 import AuthHandler from 'src/components/AuthHandler.vue';
 import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();
-const curBucket = ref(permission?.userInfo?.bucketScope[0] || '');
+const s3Object = useS3ObjectStore();
 
 const tweakPageH = (offset) => ({ height: offset ? `calc(100vh - ${offset}px)` : '100vh' });
 
-watch(() => permission.token, () => {
-  [curBucket.value] = permission.userInfo.bucketScope;
-});
 </script>
 
 <style>

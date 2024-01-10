@@ -81,11 +81,13 @@
 <script setup>
 import { useAppStatusStore } from 'src/stores/appStatus';
 import { usePermissionStore } from 'src/stores/permission';
+import { useS3ObjectStore } from 'src/stores/s3Object';
 import { useAlertHandlerStore } from 'src/stores/alertHandler';
 import { computed, ref, watch } from 'vue';
 
 const appStatus = useAppStatusStore();
-const { listUsers, listAllBuckets, editPermission } = usePermissionStore();
+const { listUsers, editPermission } = usePermissionStore();
+const { listAllBuckets } = useS3ObjectStore();
 const { makeAlert } = useAlertHandlerStore();
 
 const originUsers = ref({});

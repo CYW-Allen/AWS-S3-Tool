@@ -87,7 +87,7 @@ export default async function (fastify, _opts) {
         200: S.object()
           .description('Success to create object')
           .prop('data', S.object()
-            .prop('fileUrls', S.array().items(S.object().additionalProperties(true)))
+            .prop('objInfos', S.array().items(S.object().additionalProperties(true)))
             .prop('failedKeys', S.array().items(S.string()))
           ),
         400: respInvalidReq,

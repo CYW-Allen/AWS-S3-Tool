@@ -172,7 +172,7 @@ export default fastifyPlugin(async function (fastify, opts) {
     const Key = req.body.objKeys[0];
     const respData = {
       data: {
-        fileUrls: [],
+        objInfos: [],
         failedKeys: [],
       },
     };
@@ -204,7 +204,7 @@ export default fastifyPlugin(async function (fastify, opts) {
     const user = req.user.username;
     const { objKeys, isPublic } = req.body;
 
-    const fileUrls = [];
+    const objInfos = [];
     const failedKeys = [];
     const results = await Promise.allSettled(
       objKeys?.map((Key) => createPresignedPost(
@@ -223,14 +223,14 @@ export default fastifyPlugin(async function (fastify, opts) {
     );
 
     results.forEach((result, index) => {
-      if (result.status === 'fulfilled') fileUrls.push(result.value);
+      if (result.status === 'fulfilled') objInfos.push(result.value);
       else {
         const failKey = objKeys[index];
         failedKeys.push(failKey);
         fastify.logStat('error', `${user}->getUploadUrls`, `${failedKeys} fail - ${result.reason}`);
       }
     });
-    return { data: { fileUrls, failedKeys } };
+    return { data: { objInfos, failedKeys } };
   }
 
   fastify.decorate('listBuckets', async function (req, reply) {
@@ -248,7 +248,12 @@ export default fastifyPlugin(async function (fastify, opts) {
   fastify.decorate('getBucketsInfo', async function (req, reply) {
     try {
       const output = {};
-      const buckets = req.user.bucketScope;
+      const buckets = req.user.isAdmin
+        ? (await s3Client.send(new ListBucketsCommand({})))
+          ?.Buckets?.map((bucket) => bucket.Name) || []
+        : req.user.bucketScope;
+
+      if (!buckets.length) return reply.send({ data: {} });
 
       buckets.forEach((bucket) => {
         output[bucket] = null;

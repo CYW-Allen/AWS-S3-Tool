@@ -78,21 +78,8 @@ export const usePermissionStore = defineStore('permission', () => {
           result[user.username] = user;
           return result;
         }, {});
-      // .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (err) {
       makeAlert('error', 'listUsers', 'Fail to get all users', err);
-      return [];
-    }
-  }
-
-  async function listAllBuckets() {
-    try {
-      return Object.keys((await axios.get(
-        `${svrUrl}/s3Buckets/infos`,
-        { headers: { Authorization: `Bearer ${token.value}` } },
-      )).data.data);
-    } catch (err) {
-      makeAlert('error', 'listAllBuckets', 'Fail to get all buckets', err);
       return [];
     }
   }
@@ -105,6 +92,5 @@ export const usePermissionStore = defineStore('permission', () => {
     editPermission,
     removePermission,
     listUsers,
-    listAllBuckets,
   };
 });

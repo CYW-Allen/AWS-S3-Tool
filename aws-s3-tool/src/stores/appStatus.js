@@ -24,10 +24,12 @@ export const useAppStatusStore = defineStore('appStatus', () => (
     renameObjId: ref(''),
     preName: ref(''),
     tempName: ref(''),
-    reqList: ref(null),
     refreshList: ref([]),
+    restoreList: ref([]),
 
     isProcessing: ref(false),
+    lastProcessObj: ref(''),
+    lastProcessNum: ref(0),
     isUploading: ref(false),
     uploadLimit: 50,
     onModifying: ref(false),
