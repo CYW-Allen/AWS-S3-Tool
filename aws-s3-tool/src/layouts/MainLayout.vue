@@ -20,7 +20,7 @@
 
     <q-page-container>
       <q-page :style-fn="tweakPageH" class="bg-light-blue-1" style="overflow: hidden">
-
+        <bucket-structure />
       </q-page>
     </q-page-container>
 
@@ -45,6 +45,7 @@ import { useS3ObjectStore } from 'src/stores/s3Object';
 
 import AuthHandler from 'src/components/AuthHandler.vue';
 import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
+import BucketStructure from 'src/components/BucketStructure.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();

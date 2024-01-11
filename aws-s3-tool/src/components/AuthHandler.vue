@@ -1,5 +1,5 @@
 <template>
-  <div class="full-view row justify-center items-center bg-grey-3">
+  <div class="window-width window-height row justify-center items-center bg-grey-3">
     <q-card style="width: 30%">
       <q-tabs v-model="curAuthMode" class="text-grey bg-light-blue-1" active-class="text-white bg-blue-6"
         indicator-color="indigo-10" align="justify">

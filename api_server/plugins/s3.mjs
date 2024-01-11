@@ -40,7 +40,7 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   const RESERVED_KEY = process.env.RESERVED_KEY.split(',');
 
-  const getTimeStr = (time) => dayjs(time).format('LL(dd) HH:mm');
+  const getTimeStr = (time) => dayjs(time).format('YYYY/MM/DD (dd) HH:mm');
 
   function getFileSizeString(fileSize) {
     const fsNum = Number(fileSize);
