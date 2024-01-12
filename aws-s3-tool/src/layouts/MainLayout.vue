@@ -16,6 +16,7 @@
         <q-icon class="cursor-pointer" size="sm" name="fa-solid fa-right-from-bracket" title="logout"
           @click="permission.logout" />
       </q-bar>
+      <directory-block />
     </q-header>
 
     <q-page-container>
@@ -46,6 +47,7 @@ import { useS3ObjectStore } from 'src/stores/s3Object';
 import AuthHandler from 'src/components/AuthHandler.vue';
 import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
 import BucketStructure from 'src/components/BucketStructure.vue';
+import DirectoryBlock from 'src/components/DirectoryBlock.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();

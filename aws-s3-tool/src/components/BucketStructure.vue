@@ -201,6 +201,12 @@ function sortObjByCol(targetCol) {
   }
 }
 
+function resetSortStatus() {
+  sortByCol.value.name = null;
+  sortByCol.value.date = null;
+  sortByCol.value.size = null;
+}
+
 function handleVirtualScroll() {
   if (appStatus.dragSelect) {
     appStatus.dragSelect.clearSelection(false);
@@ -225,6 +231,11 @@ onMounted(() => {
   monitorKeyboard();
 });
 
+watch(() => [s3Object.bucketStructure, s3Object.curDirectory], () => {
+  resetSortStatus();
+  if (appStatus.dragSelect) appStatus.dragSelect.clearSelection(true);
+});
+
 watch(() => s3Object.objsInCurDir, () => {
   if (!appStatus.dragSelect) {
     configDragSelect();
@@ -232,7 +243,6 @@ watch(() => s3Object.objsInCurDir, () => {
 });
 
 watch(() => appStatus.selections, handleSelectionsChange);
-
 </script>
 
 <style scoped>
