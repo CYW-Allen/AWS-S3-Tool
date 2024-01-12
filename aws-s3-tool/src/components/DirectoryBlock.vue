@@ -27,7 +27,8 @@
     </q-scroll-area>
 
     <q-btn v-if="s3Object.curCDNId" icon="fa-solid fa-arrow-rotate-right" title="refresh distribution"
-      :class="`refreshBtn ${appStatus.refreshList.length ? 'glowing' : ''}`" glossy push text-color="white">
+      :class="`refreshBtn ${appStatus.refreshList.length ? 'glowing' : ''}`" glossy push text-color="white"
+      @click="s3Object.refreshCDN">
       <q-badge v-if="appStatus.refreshList.length" color="red" rounded floating />
     </q-btn>
   </div>
