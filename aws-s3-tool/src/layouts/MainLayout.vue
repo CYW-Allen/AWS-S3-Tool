@@ -26,7 +26,7 @@
     </q-page-container>
 
     <q-footer elevated class="bg-blue-2">
-
+      <latest-selected-info v-if="s3Object.curCDNId" />
     </q-footer>
   </q-layout>
 
@@ -48,6 +48,7 @@ import AuthHandler from 'src/components/AuthHandler.vue';
 import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
 import BucketStructure from 'src/components/BucketStructure.vue';
 import DirectoryBlock from 'src/components/DirectoryBlock.vue';
+import LatestSelectedInfo from 'src/components/LatestSelectedInfo.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();
