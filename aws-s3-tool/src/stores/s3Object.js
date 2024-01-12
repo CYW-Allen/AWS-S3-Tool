@@ -59,13 +59,12 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
   async function getBucketStructure() {
     try {
-      return (await axios.get(
+      bucketStructure.value = (await axios.get(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=structure`,
         { headers: { Authorization: `Bearer ${permission.token}` } },
       )).data.data;
     } catch (err) {
       makeAlert('error', 'getBucketStructure', 'Fail to get folder structure', err);
-      return null;
     }
   }
 
@@ -264,8 +263,8 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
             makeAlert('error', 'deleteObject', `Some objects fail to delete: ${failure.join(',')}`);
           } else {
             makeAlert('info', 'deleteObject', 'Success to delete the objects');
-            getBucketStructure().then((val) => { bucketStructure.value = val; });
           }
+          await getBucketStructure();
           appStatus.restoreList = success;
         } catch (err) {
           makeAlert('error', 'deleteObject', 'Fail to delete the objects', err);
@@ -351,6 +350,8 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
   watch(() => permission.token, initBucketsStatus);
 
+  watch(curBucket, getBucketStructure);
+
   watch([bucketStructure, curDirectory], () => {
     const curDirObjsInfo = Object.entries(bucketStructure.value[curDirectory.value] || {});
     const folders = [];
@@ -369,13 +370,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     objsInCurDir.value = result;
   }, { deep: true });
 
-  watch(curBucket, () => {
-    getBucketStructure().then((structure) => { bucketStructure.value = structure; });
-  });
-
-  if (permission.token) {
-    initBucketsStatus();
-  }
+  if (permission.token) initBucketsStatus();
 
   return {
     svrUrl,

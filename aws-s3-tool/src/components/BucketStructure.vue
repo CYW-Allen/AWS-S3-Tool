@@ -19,8 +19,9 @@
         </div>
       </div>
 
-      <div class="col">
-        <q-virtual-scroll ref="scrollArea" class="fit" :items="s3Object.objsInCurDir.slice()" v-slot="{ item, index }">
+      <div class="col" id="selectArea">
+        <q-virtual-scroll ref="scrollArea" class="fit" :items="s3Object.objsInCurDir.slice()" v-slot="{ item, index }"
+          @virtual-scroll="handleVirtualScroll">
           <div :key="`${index}-${item[0]}`" :indexnum="index" :id="item[0]"
             :class="`row fileObj q-pl-sm ${item[1].isFile ? 'isFile' : 'isDir'}`"
             @dblclick="browseFolder($event, item[1].isFile)">
@@ -48,18 +49,22 @@
       <img v-if="appStatus.previewImgUrl" :src="appStatus.previewImgUrl" class="previewImg" />
       <object v-if="appStatus.previewDocUrl && appStatus.selections[0].id.slice(-5) !== '.yaml'"
         :data="appStatus.previewDocUrl" :width="previewWidth" :height="previewHeight"></object>
-      <pre v-if="appStatus.previewDocUrl && appStatus.selections[0].id.slice(-5) === '.yaml'" class="previewYaml"></pre>
+      <pre v-if="appStatus.previewDocUrl && appStatus.selections[0].id.slice(-5) === '.yaml'" class="previewYaml">
+        {{ appStatus.previewYaml }}
+      </pre>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useAppStatusStore } from 'src/stores/appStatus';
 import { useS3ObjectStore } from 'src/stores/s3Object';
+import { useObjectSelectorStore } from 'src/stores/objectSelector';
 
 const appStatus = useAppStatusStore();
 const s3Object = useS3ObjectStore();
+const { configDragSelect, handleSelectionsChange } = useObjectSelectorStore();
 
 const colNameWidth = ref('65%');
 const colDateWidth = ref('25%');
@@ -122,7 +127,6 @@ function resizeCol() {
 
   colDate.onmousedown = (e) => {
     if (e.offsetX <= dragBarWidth) {
-      console.log('datebar dragging');
       curDragField = 'date';
       dateBarPosition = e.x;
       colBarIsDrag = true;
@@ -137,6 +141,27 @@ function resizeCol() {
   };
   document.onmousemove = resizeColWidth;
   document.onmouseup = () => { colBarIsDrag = false; };
+}
+
+function configPreviewAreaSize() {
+  const structureEle = document.getElementById('/');
+
+  previewWidth.value = window.innerWidth > 1000
+    ? structureEle.offsetWidth * 0.3 - 10
+    : structureEle.offsetWidth - 10;
+  previewHeight.value = window.innerWidth > 1000
+    ? structureEle.offsetHeight - 10
+    : structureEle.offsetHeight * 0.3 - 10;
+}
+
+function monitorKeyboard() {
+  document.onkeydown = (e) => {
+    if (e.shiftKey) appStatus.multiChoose = true;
+    if (e.key === 'Escape' && !appStatus.onModifying) appStatus.selections = [];
+  };
+  document.onkeyup = (e) => {
+    if (e.key === 'Shift') appStatus.multiChoose = false;
+  };
 }
 
 function sortObjByCol(targetCol) {
@@ -171,9 +196,18 @@ function sortObjByCol(targetCol) {
     s3Object.objsInCurDir = result;
     sortByCol.value[targetCol] = true;
   } else {
-    console.log('reverse');
     s3Object.objsInCurDir.reverse();
     sortByCol.value[targetCol] = !previousSortType;
+  }
+}
+
+function handleVirtualScroll() {
+  if (appStatus.dragSelect) {
+    appStatus.dragSelect.clearSelection(false);
+    appStatus.dragSelect.removeSelectables(appStatus.dragSelect.getSelectables().slice());
+    appStatus.dragSelect.addSelectables(document.getElementsByClassName('fileObj'));
+  } else {
+    configDragSelect();
   }
 }
 
@@ -187,16 +221,17 @@ function browseFolder(event, isFile) {
 
 onMounted(() => {
   resizeCol();
-
-  const structureEle = document.getElementById('/');
-
-  previewWidth.value = window.innerWidth > 1000
-    ? structureEle.offsetWidth * 0.3 - 10
-    : structureEle.offsetWidth - 10;
-  previewHeight.value = window.innerWidth > 1000
-    ? structureEle.offsetHeight - 10
-    : structureEle.offsetHeight * 0.3 - 10;
+  configPreviewAreaSize();
+  monitorKeyboard();
 });
+
+watch(() => s3Object.objsInCurDir, () => {
+  if (!appStatus.dragSelect) {
+    configDragSelect();
+  }
+});
+
+watch(() => appStatus.selections, handleSelectionsChange);
 
 </script>
 
