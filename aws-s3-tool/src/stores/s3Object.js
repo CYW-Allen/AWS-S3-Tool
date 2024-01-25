@@ -115,7 +115,24 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     }
   }
 
-  async function processUpload(objInfo, objVal) {
+  async function createFolder(objKey) {
+    try {
+      await axios.put(
+        `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=folder`,
+        { objKeys: [objKey] },
+        { headers: { Authorization: `Bearer ${permission.token}` } },
+      );
+      appStatus.uploadStatus[objKey] = 'success';
+      appStatus.latestProcessingNum++;
+    } catch (err) {
+      appStatus.latestProcessingNum++;
+      appStatus.uploadStatus[objKey] = 'fail';
+      console.log('[createFolder] Error: ', err);
+      throw new Error(objKey);
+    }
+  }
+
+  async function uploadFile(objInfo, objVal) {
     const form = new FormData();
 
     Object.entries(objInfo.fields).forEach(([prop, val]) => {
@@ -125,36 +142,43 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
     try {
       await axios.post(objInfo.url, form);
-      appStatus.lastProcessObj = objInfo.fields.key;
-      appStatus.lastProcessNum++;
-      return objInfo.fields.key;
-    } catch {
-      throw new Error(objInfo.fields.key);
+      appStatus.latestProcessingNum++;
+      appStatus.uploadStatus[objInfo.fields.key] = 'success';
+    } catch (err) {
+      console.log('[uploadFile] Error: ', err);
+      appStatus.latestProcessingNum++;
+      appStatus.uploadStatus[objInfo.fields.key] = 'fail';
+      appStatus.uploadFails.push({
+        objKey: objInfo.fields.key,
+        errMsg: 'Fail to upload the file',
+      });
     }
   }
 
-  async function createObject(objType, objKeys, objVals, isPublic) {
+  async function createObject(objType, objKeys, objVals) {
     try {
-      const creatingResult = (await axios.put(
-        `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=${objType}`,
-        { objKeys, ...(objType === 'file' && { isPublic }) },
-        { headers: { Authorization: `Bearer ${permission.token}` } },
-      )).data;
+      if (objType === 'folder') {
+        await Promise.allSettled(objKeys.map((key) => createFolder(key)));
+      } else {
+        const { success, failure } = (await axios.put(
+          `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=file`,
+          { objKeys, isPublic: Boolean(curCDNId.value) },
+          { headers: { Authorization: `Bearer ${permission.token}` } },
+        )).data.data;
 
-      if (objType === 'file') {
-        const uploadingResult = await Promise.allSettled(creatingResult.success.map((objInfo) => (
-          processUpload(objInfo, objVals[objInfo.fields.key])
-        )));
-
-        uploadingResult.forEach((result) => {
-          if (result.status === 'rejected') {
-            creatingResult.failure.push(result.reason);
-          }
+        failure.forEach((failKey) => {
+          appStatus.latestProcessingNum++;
+          appStatus.uploadStatus[failKey] = 'fail';
+          appStatus.uploadFails.push({
+            objKey: failKey,
+            errMsg: 'Fail to get uploading infos',
+          });
         });
-      }
 
-      if (creatingResult?.failure?.length) {
-        makeAlert('error', `createObject(${objType})`, `Some objects fail to create: ${creatingResult?.failure.join(',')}`);
+        await Promise.allSettled(success.map((objInfo) => (
+          uploadFile(objInfo, objVals[objInfo.fields.key])
+        )));
+        makeAlert('info', `createObject(${objType})`, 'Finish to upload objects');
       }
     } catch (err) {
       makeAlert('error', `createObject(${objType})`, 'Fail to create object', err);

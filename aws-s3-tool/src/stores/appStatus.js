@@ -9,18 +9,16 @@ export const useAppStatusStore = defineStore('appStatus', () => (
 
     showPermissionHandler: ref(false),
 
-    contentScrollArea: ref(null),
-
     dragSelect: ref(null),
     selections: ref([]),
     onlySelectFile: ref(false),
     multiChoose: ref(false),
+
     curSelectUrl: ref(''),
     previewImgUrl: ref(''),
     previewDocUrl: ref(''),
     previewYaml: ref(''),
 
-    cutStorage: ref([]),
     renameObjId: ref(''),
     preName: ref(''),
     tempName: ref(''),
@@ -28,13 +26,14 @@ export const useAppStatusStore = defineStore('appStatus', () => (
     restoreList: ref([]),
 
     isProcessing: ref(false),
-    lastProcessObj: ref(''),
-    lastProcessNum: ref(0),
-    isUploading: ref(false),
-    uploadLimit: 50,
+    latestProcessingNum: ref(0),
+    uploadStatus: ref({}),
+    uploadFails: ref([]),
+
     onModifying: ref(false),
     onCreatingFolder: ref(false),
     onCutting: ref(false),
+    cutStorage: ref([]),
 
     preStep: ref([]),
     nextStep: ref([]),

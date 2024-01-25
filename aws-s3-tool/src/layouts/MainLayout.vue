@@ -31,6 +31,7 @@
   </q-layout>
 
   <permission-handler />
+  <object-uploader v-if="permission.token" />
   <q-inner-loading :showing="appStatus.isProcessing">
     <div class="text-blue-8 text-h4 q-mb-md">
       <span class="q-mr-sm">Request processing...</span>
@@ -49,6 +50,7 @@ import PermissionHandler from 'src/components/admin/PermissionHandler.vue';
 import BucketStructure from 'src/components/BucketStructure.vue';
 import DirectoryBlock from 'src/components/DirectoryBlock.vue';
 import LatestSelectedInfo from 'src/components/LatestSelectedInfo.vue';
+import ObjectUploader from 'src/components/ObjectUploader.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();

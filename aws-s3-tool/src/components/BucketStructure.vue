@@ -21,7 +21,7 @@
 
       <div class="col" id="selectArea">
         <q-virtual-scroll ref="scrollArea" class="fit" :items="s3Object.objsInCurDir.slice()" v-slot="{ item, index }"
-          @virtual-scroll="handleVirtualScroll">
+          @virtual-scroll="refreshDragSelect">
           <div :key="`${index}-${item[0]}`" :indexnum="index" :id="item[0]"
             :class="`row fileObj q-pl-sm ${item[1].isFile ? 'isFile' : 'isDir'}`"
             @dblclick="browseFolder($event, item[1].isFile)">
@@ -207,7 +207,7 @@ function resetSortStatus() {
   sortByCol.value.size = null;
 }
 
-function handleVirtualScroll() {
+function refreshDragSelect() {
   if (appStatus.dragSelect) {
     appStatus.dragSelect.clearSelection(false);
     appStatus.dragSelect.removeSelectables(appStatus.dragSelect.getSelectables().slice());
@@ -231,16 +231,11 @@ onMounted(() => {
   monitorKeyboard();
 });
 
-watch(() => [s3Object.bucketStructure, s3Object.curDirectory], () => {
-  resetSortStatus();
-  if (appStatus.dragSelect) appStatus.dragSelect.clearSelection(true);
-});
-
 watch(() => s3Object.objsInCurDir, () => {
-  if (!appStatus.dragSelect) {
-    configDragSelect();
-  }
-});
+  resetSortStatus();
+  if (!appStatus.dragSelect) configDragSelect();
+  else refreshDragSelect();
+}, { flush: 'post' });
 
 watch(() => appStatus.selections, handleSelectionsChange);
 </script>

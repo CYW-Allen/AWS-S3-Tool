@@ -77,6 +77,7 @@ module.exports = {
     'no-unused-vars': ['error', { args: 'after-used' }],
     'lines-between-class-members': 'off',
     'no-alert': 'off',
+    'no-await-in-loop': 'off',
 
     // allow debugger during development only
     'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
