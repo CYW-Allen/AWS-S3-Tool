@@ -18,36 +18,64 @@ export const useObjectSelectorStore = defineStore('objectSelector', () => {
         draggability: false,
       });
 
-      appStatus.dragSelect.subscribe('DS:end', (selectObj) => {
-        if (appStatus.multiChoose && selectObj.items.length > 1) {
-          const [secondLastEle, lastEle] = selectObj.items.slice(-2);
-          const lastEleIndex = Number(lastEle.getAttribute('indexnum'));
-          const secondlastEleIndex = Number(secondLastEle.getAttribute('indexnum'));
-          const newSelection = [];
+      appStatus.dragSelect.subscribe('DS:added', (callbackObj) => {
+        if (callbackObj.item) {
+          const newAddEleId = callbackObj.item.id;
+          if (appStatus.selections.includes(newAddEleId)) {
+            document.getElementById(newAddEleId).classList.add('selectedObj', 'glossy');
+          }
+        }
+      });
 
-          appStatus.dragSelect.clearSelection(false);
+      appStatus.dragSelect.subscribe('DS:select', (callbackObj) => {
+        callbackObj.item.classList.add('selectedObj', 'glossy');
+      });
+
+      appStatus.dragSelect.subscribe('DS:unselect', (callbackObj) => {
+        callbackObj.item.classList.remove('selectedObj', 'glossy');
+      });
+
+      appStatus.dragSelect.subscribe('DS:end', (callbackObj) => {
+        const { event, items } = callbackObj;
+        const [secondLastEle, lastEle] = items.slice(-2) || [];
+
+        if (event && event.shiftKey && secondLastEle && lastEle) {
+          const newSelections = [];
+          const lastEleIndex = Number(lastEle.dataset.index);
+          const secondlastEleIndex = Number(secondLastEle.dataset.index);
+
           for (
             let i = secondlastEleIndex;
             lastEleIndex > secondlastEleIndex ? i <= lastEleIndex : i >= lastEleIndex;
             i += lastEleIndex > secondlastEleIndex ? 1 : -1
           ) {
-            const objEle = document.getElementById(s3Object.objsInCurDir[i][0]);
-
-            appStatus.dragSelect.addSelection(objEle);
-            newSelection.push(objEle);
+            newSelections.push(s3Object.objsInCurDir[i][0]);
           }
-          appStatus.selections = newSelection;
+
+          const existedEles = newSelections.reduce((result, id) => {
+            const ele = document.getElementById(id);
+            if (ele) result.push(ele);
+            return result;
+          }, []);
+
+          appStatus.dragSelect.setSelection(existedEles, false);
+          appStatus.selections = newSelections;
         } else {
-          appStatus.selections = selectObj.items;
+          const selectedIds = items.map((item) => item.id);
+          const newSelections = event && event.ctrlKey ? selectedIds : selectedIds.slice(-1);
+
+          appStatus.selections.forEach((selected) => {
+            if (!newSelections.includes(selected)) {
+              document.getElementById(selected)?.classList?.remove('selectedObj', 'glossy');
+            }
+          });
+          appStatus.selections = newSelections;
         }
       });
     }
   }
 
   function initStatus() {
-    const preSelection = Array.from(document.getElementsByClassName('selectedObj'));
-
-    preSelection.forEach((selected) => { selected.classList.remove('selectedObj', 'glossy'); });
     appStatus.curSelectUrl = '';
     appStatus.previewImgUrl = '';
     appStatus.previewDocUrl = '';
@@ -58,17 +86,16 @@ export const useObjectSelectorStore = defineStore('objectSelector', () => {
     initStatus();
     if (appStatus.selections.length) {
       appStatus.selections.forEach((selected) => {
-        selected.classList.add('selectedObj', 'glossy');
-        appStatus.onlySelectFile &&= selected.classList.contains('isFile');
+        appStatus.onlySelectFile &&= s3Object.bucketStructure[s3Object.curDirectory][selected].isFile;
       });
 
       const lastSelectObj = appStatus.selections.slice(-1)[0];
 
-      if (lastSelectObj.classList.contains('isFile') && s3Object.curDomain) {
-        const fileExt = lastSelectObj.id.split('.').slice(-1)[0].toLowerCase();
-        const encodeUrl = `https://${s3Object.curDomain}${encodeURI(lastSelectObj.id)}`;
+      if (s3Object.bucketStructure[s3Object.curDirectory][lastSelectObj].isFile && s3Object.curDomain) {
+        const fileExt = lastSelectObj.split('.').slice(-1)[0].toLowerCase();
+        const encodeUrl = `https://${s3Object.curDomain}${encodeURI(lastSelectObj)}`;
 
-        appStatus.curSelectUrl = `https://${s3Object.curDomain}${lastSelectObj.id}`;
+        appStatus.curSelectUrl = `https://${s3Object.curDomain}${lastSelectObj}`;
 
         switch (fileExt) {
           case 'png':

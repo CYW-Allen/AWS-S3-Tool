@@ -12,7 +12,7 @@ export const useAppStatusStore = defineStore('appStatus', () => (
     dragSelect: ref(null),
     selections: ref([]),
     onlySelectFile: ref(false),
-    multiChoose: ref(false),
+    objDisplayArea: ref(null),
 
     curSelectUrl: ref(''),
     previewImgUrl: ref(''),
@@ -32,7 +32,6 @@ export const useAppStatusStore = defineStore('appStatus', () => (
 
     onModifying: ref(false),
     onCreatingFolder: ref(false),
-    onCutting: ref(false),
     cutStorage: ref([]),
 
     preStep: ref([]),
@@ -40,12 +39,11 @@ export const useAppStatusStore = defineStore('appStatus', () => (
 
     isOperObj: ref(false),
 
-    queryString: ref(''),
-    queryResult: ref([]),
-
     operHist: ref([]),
 
     curObjVerList: ref([]),
     newObjVerIndex: ref(null),
+
+    queryTarget: ref(null),
   }
 ));

@@ -22,6 +22,7 @@
     <q-page-container>
       <q-page :style-fn="tweakPageH" class="bg-light-blue-1" style="overflow: hidden">
         <bucket-structure />
+        <operation-tools />
       </q-page>
     </q-page-container>
 
@@ -51,6 +52,7 @@ import BucketStructure from 'src/components/BucketStructure.vue';
 import DirectoryBlock from 'src/components/DirectoryBlock.vue';
 import LatestSelectedInfo from 'src/components/LatestSelectedInfo.vue';
 import ObjectUploader from 'src/components/ObjectUploader.vue';
+import OperationTools from 'src/components/OperationTools.vue';
 
 const appStatus = useAppStatusStore();
 const permission = usePermissionStore();

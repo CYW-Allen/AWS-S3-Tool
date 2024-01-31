@@ -21,7 +21,6 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
   const bucketStructure = ref({});
   const curDirectory = ref('/');
-  const prevDirectory = ref('/');
   const objsInCurDir = ref([]);
   const subDirsInCurDir = computed(() => {
     if (curDirectory.value === '/') return [['', '/']];
@@ -59,6 +58,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
   async function getBucketStructure() {
     try {
+      appStatus.dragSelect?.clearSelection(true);
       bucketStructure.value = (await axios.get(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects?type=structure`,
         { headers: { Authorization: `Bearer ${permission.token}` } },
@@ -96,8 +96,8 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       const fileNames = [];
       const reqKeys = appStatus.selections
         .map((ele) => {
-          fileNames.push(ele.id.split('/').slice(-1)[0]);
-          return encodeURI(ele.id.slice(1));
+          fileNames.push(ele.split('/').slice(-1)[0]);
+          return encodeURI(ele.slice(1));
         })
         .join(',');
 
@@ -195,12 +195,12 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   function getModifications(type, reqList, newName) {
     const base = type === 'rename'
       ? `${curDirectory.value}/`
-      : `/${reqList[0].slice(1).split('/').slice(0, -1).join('/')}/`;
+      : type === 'paste'
+        ? `${reqList[0].split('/').slice(0, -1).join('/')}/`
+        : '';
 
     return reqList.reduce((result, objId, index) => {
-      const replaceKey = type === 'rename'
-        ? `${newName}${index > 0 ? ` (${index})` : ''}`
-        : '';
+      const replaceKey = type === 'rename' ? `${newName} (${index + 1})` : '';
       let lastPartKey;
       const processList = [objId];
 
@@ -208,16 +208,24 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         const objDir = processList.shift();
 
         if (!bucketStructure.value[objDir]) {
-          [, lastPartKey] = objDir.split(base);
-          const dirEndChar = document.getElementById(objDir).classList.contains('isDir') ? '/' : '';
+          const parent = objDir.split('/').slice(0, -1).join('/') || '/';
+          const dirEndChar = bucketStructure.value[parent][objDir].isFile ? '' : '/';
 
-          result.push({
-            oriKey: objDir.slice(1),
-            newKey: type === 'rename'
-              ? `${base}${updateLastKeyPart(lastPartKey, replaceKey)}${dirEndChar}`.slice(1)
-              : `${curDirectory.value}${lastPartKey}${dirEndChar}`.slice(1),
-          });
+          if (type === 'delete') {
+            result.push({ Key: `${objDir}${dirEndChar}`.slice(1) });
+          } else {
+            [, lastPartKey] = objDir.split(base);
+            result.push({
+              oriKey: `${objDir.slice(1)}${dirEndChar}`,
+              newKey: type === 'rename'
+                ? `${base}${updateLastKeyPart(lastPartKey, replaceKey)}${dirEndChar}`.slice(1)
+                : `${curDirectory.value === '/' ? '' : curDirectory.value}/${lastPartKey}${dirEndChar}`.slice(1),
+            });
+          }
         } else {
+          if (type === 'delete') {
+            result.push({ Key: `${objDir}/`.slice(1) });
+          }
           Object.keys(bucketStructure.value[objDir]).forEach((subObj) => {
             processList.push(subObj);
           });
@@ -231,15 +239,16 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     try {
       const { failure } = (await axios.patch(
         `${svrUrl}/s3Buckets/${curBucket.value}/objects/infos`,
-        getModifications(type, reqList, newName),
+        { items: getModifications(type, reqList, newName), isPublic: Boolean(curCDNId) },
         { headers: { Authorization: `Bearer ${permission.token}` } },
-      )).data;
+      )).data.data;
 
       if (failure.length) {
         makeAlert('err', `modifyObject(${type})`, `Some objects fail to ${type}: ${failure.join(',')}`);
       } else {
         makeAlert('info', `modifyObject(${type})`, `All objects success to ${type}`);
       }
+      await getBucketStructure();
     } catch (err) {
       makeAlert('error', `modifyObject(${type})`, `Fail to ${type} the objects`, err);
     }
@@ -249,13 +258,11 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     let dialogContent = `<hr class="q-separator q-separator--horizontal">
     <div class="text-h6 q-my-md">Object list: </div>
     <div class="q-px-sm q-mb-md" style="height:70vh;overflow:auto;border:3px inset lightgray">`;
-    const reqList = appStatus.selections.map((selected) => ({
-      Key: `${selected.id.slice(1)}${selected.classList.contains('isDir') ? '/' : ''}`,
-    }));
+    const reqList = getModifications('delete', appStatus.selections);
 
-    appStatus.selections.forEach((selected, index) => {
-      dialogContent += `<div class="text-subtitle1 text-indigo" style="white-space: nowrap;">🔹 <i>${selected.id}</i></div>`;
-      if (index === appStatus.selections.length - 1) dialogContent += '</div>';
+    reqList.forEach((reqObj, index) => {
+      dialogContent += `<div class="text-subtitle1 text-indigo" style="white-space: nowrap;">🔹 <i>${reqObj.Key}</i></div>`;
+      if (index === reqList.length - 1) dialogContent += '</div>';
     });
 
     Dialog.create({
@@ -279,9 +286,11 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         try {
           const { success, failure } = (await axios.delete(
             `${svrUrl}/s3Buckets/${curBucket.value}/objects`,
-            reqList,
-            { headers: { Authorization: `Bearer ${permission.token}` } },
-          )).data;
+            {
+              headers: { Authorization: `Bearer ${permission.token}` },
+              data: reqList,
+            },
+          )).data.data;
 
           if (failure.length) {
             makeAlert('error', 'deleteObject', `Some objects fail to delete: ${failure.join(',')}`);
@@ -298,11 +307,12 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   }
 
   async function getObjVersions() {
-    const isFile = appStatus.selections[0].classList.contains('isFile');
+    // const isFile = appStatus.selections[0].classList.contains('isFile');
+    const { isFile } = bucketStructure.value[curDirectory.value][appStatus.selections[0]];
 
     if (!isFile) makeAlert('error', 'getObjVersions', 'Only file object is versioned');
     else {
-      const objKey = appStatus.selections[0].id.slice(1);
+      const objKey = appStatus.selections[0].slice(1);
 
       try {
         appStatus.curObjVerList = (await axios.get(
@@ -318,11 +328,12 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   async function changeObjVersion() {
     try {
       const { verId } = appStatus.curObjVerList[appStatus.newObjVerIndex];
-      const key = appStatus.selections[0].id.slice(1);
+      const key = appStatus.selections[0].slice(1);
       const isPublic = Boolean(curCDNId.value);
 
       await axios.patch(
         `${svrUrl}/s3Buckets/${curBucket.value}/object/version?verId=${verId}&key=${key}&isPublic=${isPublic}`,
+        {},
         { headers: { Authorization: `Bearer ${permission.token}` } },
       );
       makeAlert('info', 'changeObjVersion', 'Success to change object into specific version');
@@ -405,7 +416,6 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     curCDNId,
     bucketStructure,
     curDirectory,
-    prevDirectory,
     objsInCurDir,
     subDirsInCurDir,
     listAllBuckets,
