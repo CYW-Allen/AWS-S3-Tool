@@ -1,7 +1,7 @@
 import fastifyPlugin from "fastify-plugin";
 import { randomUUID } from 'crypto';
 import dayjs from "dayjs";
-import { BatchWriteCommand, GetCommand, PutCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { BatchWriteCommand, GetCommand, PutCommand, QueryCommand, ScanCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 
 export default fastifyPlugin(async function (fastify, opts) {
   function fillListWithItems(list, items) {
@@ -22,7 +22,7 @@ export default fastifyPlugin(async function (fastify, opts) {
   }
 
   function sanitizeFilters(mainObj, filters) {
-    const queryField = ['action', 'createdTimeNum', 'editor', 'objKey'];
+    const queryField = ['action', 'editor', 'objKey', 'bucket'];
 
     delete filters[mainObj];
     Object.keys(filters).forEach((key) => {
@@ -139,15 +139,17 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   fastify.decorate('listHistory', async function (req, reply) {
     const caller = req.user.username;
-    const bucket = req.params.bucket;
+    const bucket = req.query.bucket;
     const recs = [];
 
     try {
       const dbCmd = new ScanCommand({
         TableName: fastify.historyTable,
-        FilterExpression: '#bucket = :v_bucket',
-        ExpressionAttributeNames: { '#bucket': 'bucket' },
-        ExpressionAttributeValues: { ':v_bucket': bucket },
+        ...(bucket && {
+          FilterExpression: '#bucket = :v_bucket',
+          ExpressionAttributeNames: { '#bucket': 'bucket' },
+          ExpressionAttributeValues: { ':v_bucket': bucket },
+        }),
       });
 
       do {
@@ -164,11 +166,15 @@ export default fastifyPlugin(async function (fastify, opts) {
   });
 
   fastify.decorate('getHistoryByCondition', async function (req, reply) {
-    const { obj, objVal, filters } = req.body;
+    const bucket = req.query.bucket
+    let { obj, objVal, filters } = req.body;
     const TableName = fastify.historyTable;
     const caller = req.user.username;
 
-    if (filters) sanitizeFilters(obj, filters);
+    if (filters || bucket) {
+      if (bucket) (filters ??= {}).bucket = bucket;
+      sanitizeFilters(obj, filters);
+    }
     if (obj === 'createdTimeNum') {
       const days = getDayList(...objVal.split('~'));
       const results = (await Promise.allSettled(days.map((day) => (
@@ -182,6 +188,7 @@ export default fastifyPlugin(async function (fastify, opts) {
         }, []),
       });
     }
+
     return reply.send({
       data: await queryHistory(caller, getQueryConfig({ TableName, obj, objVal, filters })),
     });
@@ -223,28 +230,32 @@ export default fastifyPlugin(async function (fastify, opts) {
   fastify.decorate('deleteHistory', async function (req, reply) {
     const caller = req.user.username;
     const historyTable = fastify.historyTable;
-    const queryCondition = {
-      ...req.body,
-      filters: { bucket: req.params.bucket },
-    }
 
     try {
-      const { reqItems, failure } = await getDelReqItems(historyTable, queryCondition, caller)
-
-      if (reqItems.length) {
-        const { UnprocessedItems } = await fastify.dbClient.send(new BatchWriteCommand({
-          RequestItems: { [historyTable]: reqItems },
+      if (req.body.obj === 'recId') {
+        await fastify.dbClient.send(new DeleteCommand({
+          TableName: fastify.historyTable,
+          Key: { recId: req.body.objVal },
         }));
+        return reply.send({ failure: [] });
+      } else {
+        const { reqItems, failure } = await getDelReqItems(historyTable, req.body, caller)
 
-        if (UnprocessedItems[historyTable]) {
-          failure.push(`Fail to delete history (count: ${UnprocessedItems[historyTable].length})`);
-          UnprocessedItems[historyTable].forEach((item) => {
-            fastify.logStat('error', `${caller}->deleteHistory`, `Fail deleted history id: ${item.DeleteRequest.Key.recId}`);
-          });
-        } else fastify.logStat('info', `${caller}->deleteHistory`, 'Success to delete the history');
+        if (reqItems.length) {
+          const { UnprocessedItems } = await fastify.dbClient.send(new BatchWriteCommand({
+            RequestItems: { [historyTable]: reqItems },
+          }));
+
+          if (UnprocessedItems[historyTable]) {
+            failure.push(`Fail to delete history (count: ${UnprocessedItems[historyTable].length})`);
+            UnprocessedItems[historyTable].forEach((item) => {
+              fastify.logStat('error', `${caller}->deleteHistory`, `Fail deleted history id: ${item.DeleteRequest.Key.recId}`);
+            });
+          } else fastify.logStat('info', `${caller}->deleteHistory`, 'Success to delete the history');
+        }
+
+        return reply.send({ failure });
       }
-
-      return reply.send({ failure });
     } catch (err) {
       fastify.logStat('error', `${caller}->deleteHistory`, err);
       return reply.code(500).send();

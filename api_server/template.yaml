@@ -127,13 +127,13 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref S3ApiSvrApiGateway
-            Path: /s3History/{bucket}
+            Path: /s3History
             Method: GET
         QueryObjHistory:
           Type: Api
           Properties:
             RestApiId: !Ref S3ApiSvrApiGateway
-            Path: /s3History/{bucket}
+            Path: /s3History
             Method: POST
         AddObjHistory:
           Type: Api
@@ -145,7 +145,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref S3ApiSvrApiGateway
-            Path: /s3History/{bucket}
+            Path: /s3History
             Method: DELETE
   S3ApiSvrAuthorizerLogGroup:
     Type: AWS::Logs::LogGroup

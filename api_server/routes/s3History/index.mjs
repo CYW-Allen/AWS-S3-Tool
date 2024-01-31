@@ -15,7 +15,7 @@ export default async function (fastify, _opts) {
       description: 'List all s3 objects\' operations history in specific bucket',
       tags: ['S3 history'],
       security: [{ jwt: [] }],
-      params: S.object().prop('bucket', fastify.schemaNotEmpty.required()),
+      querystring: S.object().prop('bucket', fastify.schemaNotEmpty),
       response: {
         200: S.object()
           .description('Success to get history of the bucket')
@@ -34,12 +34,11 @@ export default async function (fastify, _opts) {
       description: 'List history under the specific conditions',
       tags: ['S3 history'],
       security: [{ jwt: [] }],
-      params: S.object().prop('bucket', fastify.schemaNotEmpty.required()),
+      querystring: S.object().prop('bucket', fastify.schemaNotEmpty),
       body: S.object()
         .prop('obj', S.string().enum(historyProps).required())
         .prop('filters', S.object()
           .prop('action', S.string().enum(s3Operations))
-          .prop('createdTimeNum', fastify.schemaNotEmpty)
           .prop('editor', fastify.schemaNotEmpty)
           .prop('objKey', fastify.schemaNotEmpty)
         )
@@ -82,7 +81,7 @@ export default async function (fastify, _opts) {
         500: fastify.svrErrResponse,
       },
     },
-    onRequest: [fastify.verifyToken, fastify.checkAdmin]
+    onRequest: [fastify.verifyToken, fastify.checkPermission]
   };
 
   const optsDeleteHistory = {
@@ -91,9 +90,8 @@ export default async function (fastify, _opts) {
       description: 'Delete the history under the specific condition',
       tags: ['S3 history'],
       security: [{ jwt: [] }],
-      params: S.object().prop('bucket', fastify.schemaNotEmpty.required()),
       body: S.object()
-        .prop('obj', S.string().enum(historyProps).required())
+        .prop('obj', S.string().enum(['bucket', 'recId', ...historyProps]).required())
         .ifThenElse(
           S.object().prop('obj', S.string().const('action')),
           S.object().prop('objVal', S.string().enum(s3Operations).required()),
@@ -111,8 +109,8 @@ export default async function (fastify, _opts) {
     onRequest: [fastify.verifyToken, fastify.checkAdmin],
   };
 
-  fastify.get('/:bucket', optsListHistory, fastify.listHistory);
-  fastify.post('/:bucket', optsGetHistoryByCondition, fastify.getHistoryByCondition);
+  fastify.get('/', optsListHistory, fastify.listHistory);
+  fastify.post('/', optsGetHistoryByCondition, fastify.getHistoryByCondition);
   fastify.put('/:bucket', optsAddHistory, fastify.addHistory);
-  fastify.delete('/:bucket', optsDeleteHistory, fastify.deleteHistory);
+  fastify.delete('/', optsDeleteHistory, fastify.deleteHistory);
 };

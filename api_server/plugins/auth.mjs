@@ -98,7 +98,7 @@ export default fastifyPlugin(async function (fastify, opts) {
 
   fastify.decorate('checkPermission', async function (req, reply) {
     const { isAdmin, bucketScope, username } = req.user;
-    const bucket = req.params.bucket;
+    const bucket = req.params.bucket || req.query.bucket;
 
     if (!isAdmin && !bucketScope.includes(bucket)) {
       fastify.logStat('info', 'checkPermission', `The user (${username}) have no permission to the bucket ${bucket}`);
