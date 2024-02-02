@@ -42,7 +42,7 @@
       </div>
     </div>
     <q-separator vertical />
-    <div class="col full-height row justify-center items-center">
+    <div v-if="s3Object.curCDNId" class="col full-height row justify-center items-center">
       <div v-if="!appStatus.selections.length" class="fit text-h5 row justify-center items-center">
         Preview area
       </div>

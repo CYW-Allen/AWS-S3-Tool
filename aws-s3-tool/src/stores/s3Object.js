@@ -406,7 +406,14 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
   watch(() => permission.token, initBucketsStatus);
 
-  watch(curBucket, getBucketStructure);
+  watch(curBucket, async () => {
+    appStatus.isProcessing = true;
+    appStatus.preStep = [];
+    appStatus.nextStep = [];
+    await getBucketStructure();
+    curDirectory.value = '/';
+    appStatus.isProcessing = false;
+  });
 
   watch([bucketStructure, curDirectory], () => {
     const curDirObjsInfo = Object.entries(bucketStructure.value[curDirectory.value] || {});
