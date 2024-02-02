@@ -8,6 +8,7 @@ export const useAppStatusStore = defineStore('appStatus', () => (
     isMobile: Platform.is.mobile,
 
     showPermissionHandler: ref(false),
+    showBucketHistory: ref(false),
 
     dragSelect: ref(null),
     selections: ref([]),

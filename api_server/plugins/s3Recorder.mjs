@@ -45,12 +45,15 @@ export default fastifyPlugin(async function (fastify, opts) {
     }
     (expressionConfig.ExpressionAttributeNames ??= {})[`#${obj}`] = obj;
     (expressionConfig.ExpressionAttributeValues ??= {})[`:v_${obj}`] = objVal;
+    expressionConfig.ExpressionAttributeNames['#action'] = 'action';
+    expressionConfig.ExpressionAttributeNames['#bucket'] = 'bucket';
 
     return {
       TableName,
       IndexName: `${obj}-index`,
       KeyConditionExpression: `#${obj} = :v_${obj}`,
       ...expressionConfig,
+      ProjectionExpression: 'recId,#action,#bucket,createdAt,editor,objKey',
     };
   }
 
@@ -195,9 +198,8 @@ export default fastifyPlugin(async function (fastify, opts) {
   });
 
   fastify.decorate('addHistory', async function (req, reply) {
-    const bucket = req.params.bucket;
     const caller = req.user.username;
-    const { objKey, action, editor, createdTimeNum } = req.body;
+    const { bucket, objKey, action, editor, createdTimeNum } = req.body;
 
     try {
       const editorIsExist = await checkUserExist(editor);
@@ -212,7 +214,7 @@ export default fastifyPlugin(async function (fastify, opts) {
           recId: randomUUID(),
           bucket,
           objKey,
-          createdAt: dayjs(createdTimeNum.toString()).unix(),
+          createdAt: dayjs(createdTimeNum.toString()).unix() * 1000,
           createdTimeNum: Number(createdTimeNum),
           action,
           editor,

@@ -202,6 +202,8 @@ Resources:
           AttributeType: S
         - AttributeName: objKey
           AttributeType: S
+        - AttributeName: bucket
+          AttributeType: S
       KeySchema:
         - AttributeName: recId
           KeyType: HASH
@@ -227,6 +229,12 @@ Resources:
         - IndexName: objKey-index
           KeySchema:
             - AttributeName: objKey
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: bucket-index
+          KeySchema:
+            - AttributeName: bucket
               KeyType: HASH
           Projection:
             ProjectionType: ALL

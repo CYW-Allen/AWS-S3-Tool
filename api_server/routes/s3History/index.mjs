@@ -67,14 +67,13 @@ export default async function (fastify, _opts) {
       security: [{ jwt: [] }],
       params: S.object().prop('bucket', fastify.schemaNotEmpty.required()),
       body: S.object()
+        .prop('bucket', fastify.schemaNotEmpty.required())
         .prop('objKey', fastify.schemaNotEmpty.required())
         .prop('action', S.string().enum(s3Operations).required())
         .prop('editor', fastify.schemaNotEmpty.required())
         .prop('createdTimeNum', fastify.schemaNotEmpty.required()),
       response: {
-        200: S.object()
-          .description('Success to add new object history')
-          .prop('data', S.null()),
+        204: S.object().description('Success to add new object history'),
         400: respInvalidReq,
         403: respUnpermitReq,
         404: fastify.clientErrResponse(S.object().description('Invaild editor')),
