@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { Dialog } from 'quasar';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import { useAlertHandlerStore } from './alertHandler';
 import { useAppStatusStore } from './appStatus';
 import { usePermissionStore } from './permission';
@@ -132,6 +133,19 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     }
   }
 
+  async function addHistory(operInfo) {
+    try {
+      await axios.put(
+        `${svrUrl}/s3History/${curBucket.value}`,
+        operInfo,
+        { headers: { Authorization: `Bearer ${permission.token}` } },
+      );
+      makeAlert('info', 'addHistory', 'Success to add history');
+    } catch (err) {
+      makeAlert('error', 'addHistory', 'Fail to add history', err);
+    }
+  }
+
   async function uploadFile(objInfo, objVal) {
     const form = new FormData();
 
@@ -142,6 +156,13 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
 
     try {
       await axios.post(objInfo.url, form);
+      await addHistory({
+        bucket: curBucket.value,
+        objKey: objInfo.fields.key,
+        action: 'upload',
+        editor: permission.userInfo.username,
+        createdTimeNum: dayjs().format('YYYYMMDD'),
+      });
       appStatus.latestProcessingNum++;
       appStatus.uploadStatus[objInfo.fields.key] = 'success';
     } catch (err) {
@@ -428,5 +449,6 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     changeObjVersion,
     refreshCDN,
     restoreDeletedObj,
+    addHistory,
   };
 });

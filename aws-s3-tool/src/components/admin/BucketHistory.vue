@@ -186,7 +186,8 @@
                         </q-form>
                       </q-tab-panel>
                       <q-tab-panel name="add">
-                        <q-form class="fit row q-col-gutter-md" id="addHistoryForm" @submit="addHistory">
+                        <q-form class="fit row q-col-gutter-md" id="addHistoryForm"
+                          @submit="s3Object.addHistory(addCondition)">
                           <q-select class="text-subtitle1 text-bold col-4" filled square v-model="addCondition.bucket"
                             :options="s3Object.availbleBuckets" dense>
                             <template v-slot:prepend>
@@ -512,19 +513,6 @@ function deleteHistory() {
       }
       appStatus.isProcessing = false;
     });
-}
-
-async function addHistory() {
-  try {
-    await axios.put(
-      `${svrUrl}/s3History/${s3Object.curBucket}`,
-      addCondition.value,
-      { headers: { Authorization: `Bearer ${permission.token}` } },
-    );
-    makeAlert('info', 'addHistory', 'Success to add history');
-  } catch (err) {
-    makeAlert('error', 'addHistory', 'Fail to add history', err);
-  }
 }
 </script>
 
