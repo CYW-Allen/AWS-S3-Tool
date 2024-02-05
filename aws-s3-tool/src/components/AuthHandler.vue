@@ -1,6 +1,6 @@
 <template>
   <div class="window-width window-height row justify-center items-center bg-grey-3">
-    <q-card style="width: 30%">
+    <q-card style="width: 30%" @keydown="pressEnterForReq">
       <q-tabs v-model="curAuthMode" class="text-grey bg-light-blue-1" active-class="text-white bg-blue-6"
         indicator-color="indigo-10" align="justify">
         <q-tab content-class="costomTab" v-for="(mode, i) in authMode" :key="`tab-${i}`" :name="mode" :label="mode" />
@@ -80,6 +80,10 @@ async function sendRequest(mode) {
   appStatus.isProcessing = true;
   await permission.getPermission(mode, inputField.value[mode].username, inputField.value[mode].password);
   appStatus.isProcessing = false;
+}
+
+function pressEnterForReq(event) {
+  if (event.key === 'Enter') sendRequest(curAuthMode.value);
 }
 
 </script>
