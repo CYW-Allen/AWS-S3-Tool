@@ -72,8 +72,8 @@
       <q-card-actions align="right">
         <q-btn v-if="uploadingReqStatus !== 'processing'" glossy push label="Close" color="grey-8" no-caps
           v-close-popup />
-        <q-btn v-if="uploadingReqStatus === 'ready'" glossy push label="Upload" color="primary" no-caps
-          @click="uploadObjs" />
+        <q-btn v-if="uploadingReqStatus === 'ready' && !appStatus.uploadFails.length" glossy push label="Upload"
+          color="primary" no-caps @click="uploadObjs" />
         <q-btn v-if="appStatus.uploadFails.length && uploadingReqStatus === 'processed'" glossy push label="Retry"
           color="amber-8" no-caps />
       </q-card-actions>
@@ -110,8 +110,8 @@ const curPercentageText = computed(() => `${Math.floor(curProcessPercentage.valu
 function initStatus() {
   appStatus.latestProcessingNum = 0;
   uploadingReqStatus.value = 'ready';
-  s3Object.uploadStatus = {};
-  s3Object.uploadFails = [];
+  appStatus.uploadStatus = {};
+  appStatus.uploadFails = [];
   uploadFolders = [];
   uploadFiles = {};
   filter.value = '';
@@ -201,7 +201,7 @@ async function gatherUploadInfos(dropItems) {
       const dirPrefix = s3Object.curDirectory === '/' ? '' : s3Object.curDirectory;
       uploadFiles[`${dirPrefix}${files[index].fullPath}`.slice(1)] = result.value;
     } else {
-      s3Object.uploadFails.push({
+      appStatus.uploadFails.push({
         objKey: files[index].fullPath,
         errMsg: result.reason,
       });
@@ -227,7 +227,7 @@ function structureDropItems(dropList) {
       };
     });
 
-    s3Object.uploadStatus[obj] = 'ready';
+    appStatus.uploadStatus[obj] = 'ready';
     return result;
   }, {});
 }
@@ -257,7 +257,7 @@ function getStatusTree(structure) {
 async function uploadObjs() {
   const objKeys = uploadFolders.concat(Object.keys(uploadFiles));
 
-  objKeys.forEach((key) => { s3Object.uploadStatus[key] = 'processing'; });
+  objKeys.forEach((key) => { appStatus.uploadStatus[key] = 'processing'; });
   uploadingReqStatus.value = 'processing';
   await Promise.allSettled([
     s3Object.createObject('folder', uploadFolders),
@@ -272,7 +272,10 @@ async function checkUploading(dropItems) {
   try {
     await gatherUploadInfos(dropItems);
 
-    const statusStructure = structureDropItems(uploadFolders.concat(Object.keys(uploadFiles)));
+    const statusStructure = structureDropItems([
+      ...uploadFolders,
+      ...Object.keys(uploadFiles),
+      ...appStatus.uploadFails.map((f) => `${s3Object.curDirectory === '/' ? '' : s3Object.curDirectory}${f.objKey}`)]);
 
     uploadingTree.value = getStatusTree(statusStructure);
   } catch (err) {
