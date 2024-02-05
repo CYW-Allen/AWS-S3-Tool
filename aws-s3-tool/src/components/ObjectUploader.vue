@@ -255,15 +255,18 @@ function getStatusTree(structure) {
 }
 
 async function uploadObjs() {
-  const objKeys = uploadFolders.concat(Object.keys(uploadFiles));
+  const fileKeys = Object.keys(uploadFiles);
+  const objKeys = uploadFolders.concat(fileKeys);
 
   objKeys.forEach((key) => { appStatus.uploadStatus[key] = 'processing'; });
   uploadingReqStatus.value = 'processing';
+
   await Promise.allSettled([
     s3Object.createObject('folder', uploadFolders),
     s3Object.createObject('files', Object.keys(uploadFiles), uploadFiles),
   ]);
   await s3Object.getBucketStructure();
+  appStatus.refreshList = appStatus.refreshList.concat(fileKeys.map((key) => `/${encodeURI(key)}`));
   uploadingReqStatus.value = 'processed';
 }
 

@@ -231,13 +231,15 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         if (!bucketStructure.value[objDir]) {
           const parent = objDir.split('/').slice(0, -1).join('/') || '/';
           const dirEndChar = bucketStructure.value[parent][objDir].isFile ? '' : '/';
+          const oriKeyStr = `${objDir}${dirEndChar}`;
 
+          if (dirEndChar !== '/') appStatus.refreshList.push(encodeURI(oriKeyStr));
           if (type === 'delete') {
-            result.push({ Key: `${objDir}${dirEndChar}`.slice(1) });
+            result.push({ Key: oriKeyStr.slice(1) });
           } else {
             [, lastPartKey] = objDir.split(base);
             result.push({
-              oriKey: `${objDir.slice(1)}${dirEndChar}`,
+              oriKey: oriKeyStr.slice(1),
               newKey: type === 'rename'
                 ? `${base}${updateLastKeyPart(lastPartKey, replaceKey)}${dirEndChar}`.slice(1)
                 : `${curDirectory.value === '/' ? '' : curDirectory.value}/${lastPartKey}${dirEndChar}`.slice(1),
@@ -252,6 +254,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
           });
         }
       }
+
       return result;
     }, []);
   }
@@ -328,7 +331,6 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   }
 
   async function getObjVersions() {
-    // const isFile = appStatus.selections[0].classList.contains('isFile');
     const { isFile } = bucketStructure.value[curDirectory.value][appStatus.selections[0]];
 
     if (!isFile) makeAlert('error', 'getObjVersions', 'Only file object is versioned');
@@ -357,6 +359,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         {},
         { headers: { Authorization: `Bearer ${permission.token}` } },
       );
+      appStatus.refreshList.push(encodeURI(appStatus.selections[0]));
       makeAlert('info', 'changeObjVersion', 'Success to change object into specific version');
     } catch (err) {
       makeAlert('error', 'changeObjVersion', 'Fail to change the object by version', err);
@@ -366,6 +369,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
   async function refreshCDN() {
     appStatus.isProcessing = true;
     appStatus.refreshList = Array.from(new Set(appStatus.refreshList));
+
     try {
       await axios.patch(
         `${svrUrl}/s3Buckets/distributions`,
@@ -375,7 +379,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         },
         { headers: { Authorization: `Bearer ${permission.token}` } },
       );
-
+      appStatus.refreshList = [];
       makeAlert('info', 'refreshCDN', 'Success to send refresh request');
     } catch (err) {
       makeAlert('error', 'refreshCDN', 'Fail to refresh S3 distributions', err);
