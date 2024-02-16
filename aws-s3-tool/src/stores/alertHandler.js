@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { Notify } from 'quasar';
 
 export const useAlertHandlerStore = defineStore('alertHandler', () => {
-  function makeAlert(type, caller, message, err) {
+  function makeAlert(type, caller, message) {
     if (type === 'info') {
       Notify.create({
         type: 'positive',
@@ -14,7 +14,7 @@ export const useAlertHandlerStore = defineStore('alertHandler', () => {
       const occurTime = dayjs().format('YYYY/MM/DD HH:mm:ss');
 
       Notify.create(message);
-      console.log(`${occurTime} [${caller}] Error: ${err || message}`);
+      console.log(`${occurTime} [${caller}] Error: ${message}`);
     }
   }
 

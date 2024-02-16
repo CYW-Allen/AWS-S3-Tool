@@ -38,7 +38,7 @@ async function copy2Clipboard(text) {
     }
     makeAlert('info', 'copy2Clipboard', 'The url has already been copied to clipboard');
   } catch (err) {
-    makeAlert('error', 'copy2Clipboard', 'Fail to copy to clipboard', err);
+    makeAlert('error', 'copy2Clipboard', err.message);
   }
 }
 

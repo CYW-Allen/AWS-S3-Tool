@@ -485,7 +485,7 @@ function deleteHistory() {
             failure.forEach((f) => console.log(`[deleteHistory] Error: ${f}`));
           } else makeAlert('info', 'deleteHistory', 'Success to delete history');
         } catch (err) {
-          makeAlert('error', 'deleteHistory', 'Fail to delete the history', err);
+          makeAlert('error', 'deleteHistory', err?.response?.data?.message || 'Fail to delete the history');
         }
       } else {
         const results = await Promise.allSettled(selectedRows.value.map((row) => (

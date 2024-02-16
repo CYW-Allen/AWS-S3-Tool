@@ -26,7 +26,7 @@ export const usePermissionStore = defineStore('permission', () => {
       window.localStorage.setItem('token', token.value);
       makeAlert('info', 'getPermission', 'Success to get permission');
     } catch (err) {
-      makeAlert('error', 'getPermission', err?.response?.data || 'Fail to get permission', err);
+      makeAlert('error', 'getPermission', err?.response?.data?.message || 'Fail to get permission');
     }
   }
 
@@ -50,7 +50,7 @@ export const usePermissionStore = defineStore('permission', () => {
 
       makeAlert('info', 'editPermissionScope', message);
     } catch (err) {
-      makeAlert('error', 'editPermissionScope', err?.response?.data || 'Fail to edit permission', err);
+      makeAlert('error', 'editPermissionScope', err?.response?.data?.message || 'Fail to edit permission');
     }
   }
 
@@ -63,7 +63,7 @@ export const usePermissionStore = defineStore('permission', () => {
 
       makeAlert('info', 'removePermission', message);
     } catch (err) {
-      makeAlert('error', 'removePermission', err?.response?.data || `Fail to remove ${user}'s permission`, err);
+      makeAlert('error', 'removePermission', err?.response?.data?.message || `Fail to remove ${user}'s permission`);
     }
   }
 
@@ -79,7 +79,7 @@ export const usePermissionStore = defineStore('permission', () => {
           return result;
         }, {});
     } catch (err) {
-      makeAlert('error', 'listUsers', 'Fail to get all users', err);
+      makeAlert('error', 'listUsers', err?.response?.data?.message || 'Fail to get all users');
       return [];
     }
   }

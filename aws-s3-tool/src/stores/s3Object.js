@@ -40,7 +40,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         { headers: { Authorization: `Bearer ${permission.token}` } },
       )).data.data;
     } catch (err) {
-      makeAlert('error', 'listAllBuckets', 'Fail to get all buckets', err);
+      makeAlert('error', 'listAllBuckets', 'Fail to get all buckets', err?.response?.data?.message || err.message);
       return [];
     }
   }
@@ -52,7 +52,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         { headers: { Authorization: `Bearer ${permission.token}` } },
       )).data.data;
     } catch (err) {
-      makeAlert('error', 'getBucketsInfo', 'Fail to get buckets info', err);
+      makeAlert('error', 'getBucketsInfo', 'Fail to get buckets info', err?.response?.data?.message || err.message);
       return {};
     }
   }
@@ -65,7 +65,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         { headers: { Authorization: `Bearer ${permission.token}` } },
       )).data.data;
     } catch (err) {
-      makeAlert('error', 'getBucketStructure', 'Fail to get folder structure', err);
+      makeAlert('error', 'getBucketStructure', 'Fail to get folder structure', err?.response?.data?.message || err.message);
     }
   }
 
@@ -112,7 +112,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         makeAlert('error', 'downloadFiles', `Fail to download object: ${failedKeys.join(',')}`);
       }
     } catch (err) {
-      makeAlert('error', 'downloadFiles', 'Fail to download the files', err);
+      makeAlert('error', 'downloadFiles', 'Fail to download the files', err?.response?.data?.message || err.message);
     }
   }
 
@@ -128,7 +128,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     } catch (err) {
       appStatus.latestProcessingNum++;
       appStatus.uploadStatus[objKey] = 'fail';
-      console.log('[createFolder] Error: ', err);
+      console.log('[createFolder] Error: ', err?.response?.data?.message || err.message);
       throw new Error(objKey);
     }
   }
@@ -142,7 +142,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       );
       makeAlert('info', 'addHistory', 'Success to add history');
     } catch (err) {
-      makeAlert('error', 'addHistory', 'Fail to add history', err);
+      makeAlert('error', 'addHistory', 'Fail to add history', err?.response?.data?.message || err.message);
     }
   }
 
@@ -166,7 +166,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       appStatus.latestProcessingNum++;
       appStatus.uploadStatus[objInfo.fields.key] = 'success';
     } catch (err) {
-      console.log('[uploadFile] Error: ', err);
+      console.log('[uploadFile] Error: ', err?.response?.data?.message || err.message);
       appStatus.latestProcessingNum++;
       appStatus.uploadStatus[objInfo.fields.key] = 'fail';
       appStatus.uploadFails.push({
@@ -202,7 +202,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         makeAlert('info', `createObject(${objType})`, 'Finish to upload objects');
       }
     } catch (err) {
-      makeAlert('error', `createObject(${objType})`, 'Fail to create object', err);
+      makeAlert('error', `createObject(${objType})`, err?.response?.data?.message || err.message);
     }
   }
 
@@ -274,7 +274,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       }
       await getBucketStructure();
     } catch (err) {
-      makeAlert('error', `modifyObject(${type})`, `Fail to ${type} the objects`, err);
+      makeAlert('error', `modifyObject(${type})`, err?.response?.data?.message || err.message);
     }
   }
 
@@ -324,7 +324,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
           await getBucketStructure();
           appStatus.restoreList = success;
         } catch (err) {
-          makeAlert('error', 'deleteObject', 'Fail to delete the objects', err);
+          makeAlert('error', 'deleteObject', err?.response?.data?.message || err.message);
         }
         appStatus.isProcessing = false;
       });
@@ -343,7 +343,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
           { headers: { Authorization: `Bearer ${permission.token}` } },
         )).data.data.objVerInfos;
       } catch (err) {
-        makeAlert('error', 'getObjVersions', `Fail to get the version of the object: ${objKey}`, err);
+        makeAlert('error', 'getObjVersions', err?.response?.data?.message || err.message);
       }
     }
   }
@@ -362,7 +362,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       appStatus.refreshList.push(encodeURI(appStatus.selections[0]));
       makeAlert('info', 'changeObjVersion', 'Success to change object into specific version');
     } catch (err) {
-      makeAlert('error', 'changeObjVersion', 'Fail to change the object by version', err);
+      makeAlert('error', 'changeObjVersion', err?.response?.data?.message || err.message);
     }
   }
 
@@ -382,7 +382,7 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
       appStatus.refreshList = [];
       makeAlert('info', 'refreshCDN', 'Success to send refresh request');
     } catch (err) {
-      makeAlert('error', 'refreshCDN', 'Fail to refresh S3 distributions', err);
+      makeAlert('error', 'refreshCDN', err?.response?.data?.message || err.message);
     }
 
     appStatus.isProcessing = false;
@@ -404,11 +404,13 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
         appStatus.restoreList = [];
       }
     } catch (err) {
-      makeAlert('error', 'restoreDeletedObj', 'Fail to restore the object', err);
+      makeAlert('error', 'restoreDeletedObj', err?.response?.data?.message || err.message);
     }
   }
 
-  watch(() => permission.token, initBucketsStatus);
+  watch(() => permission.token, (v) => {
+    if (v) initBucketsStatus();
+  });
 
   watch(curBucket, async () => {
     appStatus.isProcessing = true;
@@ -437,7 +439,13 @@ export const useS3ObjectStore = defineStore('s3Object', () => {
     objsInCurDir.value = result;
   }, { deep: true });
 
-  if (permission.token) initBucketsStatus();
+  if (permission.token) {
+    if (permission.userInfo.exp > dayjs().unix()) initBucketsStatus();
+    else {
+      window.localStorage.removeItem('token');
+      permission.token = null;
+    }
+  }
 
   return {
     svrUrl,

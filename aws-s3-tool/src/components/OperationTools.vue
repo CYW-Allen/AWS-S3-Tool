@@ -178,7 +178,7 @@ function findPasteConflict() {
 
 async function pasteObj() {
   if (findPasteConflict()) {
-    makeAlert('error', 'pasteObj', 'There is one object which name is the same as the pasting one');
+    makeAlert('error', 'pasteObj', 'The object with same name has already existed');
   } else {
     await s3Object.modifyObject('paste', appStatus.cutStorage);
     appStatus.cutStorage = [];

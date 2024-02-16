@@ -190,7 +190,6 @@ async function gatherUploadInfos(dropItems) {
   const reqUploadingAmount = folders.length + files.length;
 
   if (reqUploadingAmount > UPLOAD_LIMIT) {
-    makeAlert('error', 'checkUploading', 'Too many uploading objects');
     throw new Error(`The number of uploading request (${reqUploadingAmount}) should not exceed ${UPLOAD_LIMIT}`);
   }
 
@@ -282,7 +281,7 @@ async function checkUploading(dropItems) {
 
     uploadingTree.value = getStatusTree(statusStructure);
   } catch (err) {
-    makeAlert('error', 'checkUploading', 'Uploading process fail', err);
+    makeAlert('error', 'checkUploading', err.message);
     isUploading.value = false;
   }
 }
