@@ -88,7 +88,7 @@
 
 1. Clone this repo
    ```sh
-   git clone https://github.com/XXX/AWS-S3-Tool.git
+   git clone https://github.com/CYW-Allen/AWS-S3-Tool.git
    ```
 2. Create *.env* files under the directories **./api_server** and **./aws-s3-tool**, and fill the content according to *.env-example* file
 3. Run the shell script (*Press Enter to stop the entire app*)
