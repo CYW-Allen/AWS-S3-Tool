@@ -28,7 +28,7 @@
             </q-input>
 
             <div class="col scroll">
-              <q-tree class="fit" :nodes="uploadingTree" node-key="label" default-expand-all :filter="filter"
+              <q-tree class="fit" :nodes="uploadingTree" node-key="objKey" default-expand-all :filter="filter"
                 no-transition>
                 <template v-slot:default-header="prop">
                   <div class="row items-center">

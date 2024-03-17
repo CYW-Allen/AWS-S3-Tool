@@ -90,8 +90,9 @@
    ```sh
    git clone https://github.com/CYW-Allen/AWS-S3-Tool.git
    ```
-2. Create *.env* files under the directories **./api_server** and **./aws-s3-tool**, and fill the content according to *.env-example* file
-3. Run the shell script (*Press Enter to stop the entire app*)
+2. Make sure there are two DynamoDB tables online (for `AUTH_TABLE` and  `HISTORY_TABLE`)
+3. Create *.env* files under the directories **./api_server** and **./aws-s3-tool**, and fill the content according to *.env-example* file
+4. Run the shell script (*Press Enter to stop the entire app*)
    ```sh
    ./launch-sample-app.sh
    ```
